@@ -1,0 +1,57 @@
+<!-- Main Panel for The World Extension -->
+<div id="the_world-panel" class="tw-panel" style="display: none;">
+    <!-- Theme Layers for animated backgrounds -->
+    <div class="tw-theme-layers">
+        <div class="tw-theme-layer tw-theme-layer-night"></div>
+        <div class="tw-theme-layer tw-theme-layer-sunset"></div>
+        <div class="tw-theme-layer tw-theme-layer-dusk"></div>
+        <div class="tw-theme-layer tw-theme-layer-sunrise"></div>
+        <div class="tw-theme-layer tw-theme-layer-dawn"></div>
+        <div class="tw-theme-layer tw-theme-layer-day"></div>
+        <div class="tw-theme-layer tw-theme-layer-night-rain"></div>
+        <div class="tw-theme-layer tw-theme-layer-sunset-rain"></div>
+        <div class="tw-theme-layer tw-theme-layer-dusk-rain"></div>
+        <div class="tw-theme-layer tw-theme-layer-sunrise-rain"></div>
+        <div class="tw-theme-layer tw-theme-layer-dawn-rain"></div>
+        <div class="tw-theme-layer tw-theme-layer-day-rain"></div>
+    </div>
+
+    <!-- Raindrop on Glass Effect Layer -->
+    <div class="tw-rain-layer"></div>
+    
+    <!-- Panel Header -->
+    <div class="tw-header">
+        <span class="tw-title">世界仪表盘</span>
+        <div class="tw-header-controls">
+            <span class="tw-close">&times;</span>
+        </div>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <div class="tw-tabs">
+        <div class="tw-tab-link active" data-tab="world-state">当前场景信息</div>
+        <div class="tw-tab-link" data-tab="map-nav">地图</div>
+        <div class="tw-tab-link" data-tab="settings">设置</div>
+    </div>
+    
+    <!-- Content Panes -->
+    <div class="tw-content">
+        <div class="tw-pane active" id="world-state-pane"></div>
+        <div class="tw-pane" id="map-nav-pane"></div>
+        <div class="tw-pane" id="settings-pane"></div>
+    </div>
+    
+    <!-- Local (in-panel) FX Container -->
+    <div class="tw-fx-container-local">
+        <div class="tw-fx-glow tw-fx-glow-sunrise"></div>
+        <div class="tw-fx-glow tw-fx-glow-sunset"></div>
+    </div>
+    
+    <!-- Resize Handle -->
+    <div class="tw-resize-handle"></div>
+</div>
+
+<!-- Global (fullscreen) FX Layer -->
+<div id="the_world-fx-layer"></div>
+<!-- NEW: Global BACKGROUND FX Layer -->
+<div id="the_world-fx-layer-bg"></div>

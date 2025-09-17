@@ -1,0 +1,11 @@
+/**
+ * The World - Main Stylesheet
+ * @description This file imports all other CSS files for the extension.
+ */
+@import url('./css/base.css');
+@import url('./css/themes.css');
+@import url('./css/weather_icons.css');
+@import url('./css/weather_effects.css');
+@import url('./css/lighting.css');
+@import url('./css/toggle_button_effects.css');
+@import url('./css/clouds_3d.css');

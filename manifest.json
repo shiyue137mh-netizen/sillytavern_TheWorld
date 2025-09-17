@@ -1,0 +1,9 @@
+{
+  "display_name": "The World",
+  "author": "shiyue137 & User",
+  "version": "1.0.0",
+  "description": "A dynamic theme engine that provides an immersive world dashboard with themes and weather effects.",
+  "js": "script.js",
+  "css": "style.css",
+  "html": "panel.html"
+}

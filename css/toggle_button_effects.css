@@ -1,0 +1,240 @@
+/**
+ * The World - Dynamic Toggle Button Effects
+ * Adapted and scaled from the prototype in index.tsx
+ */
+
+#the_world-toggle-btn.weather-sunny,
+#the_world-toggle-btn.weather-cloudy,
+#the_world-toggle-btn.weather-rainy,
+#the_world-toggle-btn.weather-snowy,
+#the_world-toggle-btn.weather-thunderstorm,
+#the_world-toggle-btn.weather-night-clear,
+#the_world-toggle-btn.weather-night-cloudy,
+#the_world-toggle-btn.weather-rainy-night,
+#the_world-toggle-btn.weather-sunrise-sunset,
+#the_world-toggle-btn.weather-sakura,
+#the_world-toggle-btn.weather-fireflies {
+    font-size: 5px; /* Base for em units to scale down from 13px */
+}
+
+/* --- Sunny (Day) --- */
+#the_world-toggle-btn.weather-sunny {
+    background: linear-gradient(160deg, #87CEEB, #ADD8E6);
+    box-shadow: 0 0 15px rgba(135, 206, 235, 0.6);
+}
+#the_world-toggle-btn .sun {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4.5em; /* 50px -> 4.5em */
+    height: 4.5em;
+    border-radius: 100%;
+    background: linear-gradient(to bottom left, #FFD700, #FFA500);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+    animation: sun-pulse 3s infinite linear;
+}
+
+/* --- CLOUDS --- */
+#the_world-toggle-btn.weather-cloudy, 
+#the_world-toggle-btn.weather-rainy, 
+#the_world-toggle-btn.weather-snowy,
+#the_world-toggle-btn.weather-thunderstorm {
+    background: linear-gradient(160deg, #7f8c8d, #95a5a6);
+    box-shadow: 0 0 15px rgba(127, 140, 141, 0.6);
+}
+
+#the_world-toggle-btn .cloud {
+    position: absolute;
+    width: 13.5em;
+    height: 10.5em;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.15));
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#the_world-toggle-btn .cloud::before {
+    content: '';
+    position: absolute;
+    top: 3.5em;
+    left: 50%;
+    width: 6.25em;
+    height: 6.25em;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: -4.0625em -0.9375em 0 0, 4.0625em -0.625em 0 0.3125em, -8.125em 0em 0 -0.3125em, 8.4375em 0.3125em 0 0, 0em -1.5625em 0 -0.625em, -5.9375em -0.3125em 0 -0.9375em, 5.9375em -0.125em 0 -0.5em;
+}
+
+/* Scaled down cloud positions */
+#the_world-toggle-btn .cloud-back { top: -25px; animation-duration: 28s; transform: scale(0.6) translateX(-70%); opacity: 0.5; z-index: 1; animation-name: cloud-move-back; animation-delay: -14s; }
+#the_world-toggle-btn .cloud-back::before { color: #d5d5d5; background-color: #d5d5d5; }
+
+#the_world-toggle-btn .cloud-mid { top: -28px; animation-duration: 22s; animation-direction: alternate-reverse; transform: scale(0.75) translateX(-60%); opacity: 0.75; z-index: 2; animation-name: cloud-move-mid; animation-delay: -7s; }
+#the_world-toggle-btn .cloud-mid::before { color: #e6e6e6; background-color: #e6e6e6; }
+
+#the_world-toggle-btn .cloud-front { top: -32px; animation-duration: 18s; z-index: 3; transform: translateX(-50%) translateY(-10px); animation-name: cloud-move-front; }
+#the_world-toggle-btn .cloud-front::before { color: #f1f1f1; background-color: #f1f1f1; }
+
+#the_world-toggle-btn.weather-thunderstorm .cloud-back::before { color: #2c3e50; background-color: #2c3e50; }
+#the_world-toggle-btn.weather-thunderstorm .cloud-mid::before { color: #34495e; background-color: #34495e; }
+#the_world-toggle-btn.weather-thunderstorm .cloud-front::before { color: #4a637f; background-color: #4a637f; }
+
+#the_world-toggle-btn.weather-night-cloudy .cloud-back::before, #the_world-toggle-btn.weather-rainy-night .cloud-back::before { color: #282c34; background-color: #282c34; }
+#the_world-toggle-btn.weather-night-cloudy .cloud-mid::before, #the_world-toggle-btn.weather-rainy-night .cloud-mid::before { color: #2c3e50; background-color: #2c3e50; }
+#the_world-toggle-btn.weather-night-cloudy .cloud-front::before, #the_world-toggle-btn.weather-rainy-night .cloud-front::before { color: #34495e; background-color: #34495e; }
+
+/* --- Rainy Particles (Scoped) --- */
+#the_world-toggle-btn.weather-rainy ul, #the_world-toggle-btn.weather-thunderstorm ul, #the_world-toggle-btn.weather-rainy-night ul {
+    position: absolute; top: 25px; left: 0; width: 100%; z-index: 1; padding: 0; margin: 0;
+}
+#the_world-toggle-btn.weather-rainy li, #the_world-toggle-btn.weather-thunderstorm li, #the_world-toggle-btn.weather-rainy-night li {
+    position: absolute; list-style: none; width: 1px; height: 5px;
+    border-radius: 0.5px; background-color: #bdc3c7; opacity: 0;
+    animation: fall-small 1.5s infinite linear; transform: rotate(15deg);
+}
+#the_world-toggle-btn.weather-rainy-night li { background-color: #ecf0f1; }
+/* Shared Nth child for rain/thunder */
+#the_world-toggle-btn.weather-rainy li:nth-child(1), #the_world-toggle-btn.weather-thunderstorm li:nth-child(1), #the_world-toggle-btn.weather-rainy-night li:nth-child(1) { left: 80%; animation-delay: 0s; }
+#the_world-toggle-btn.weather-rainy li:nth-child(2), #the_world-toggle-btn.weather-thunderstorm li:nth-child(2), #the_world-toggle-btn.weather-rainy-night li:nth-child(2) { left: 60%; animation-delay: 0.3s; }
+#the_world-toggle-btn.weather-rainy li:nth-child(3), #the_world-toggle-btn.weather-thunderstorm li:nth-child(3), #the_world-toggle-btn.weather-rainy-night li:nth-child(3) { left: 70%; animation-delay: 0.6s; }
+#the_world-toggle-btn.weather-rainy li:nth-child(4), #the_world-toggle-btn.weather-thunderstorm li:nth-child(4), #the_world-toggle-btn.weather-rainy-night li:nth-child(4) { left: 45%; animation-delay: 1s; }
+#the_world-toggle-btn.weather-rainy li:nth-child(5), #the_world-toggle-btn.weather-thunderstorm li:nth-child(5), #the_world-toggle-btn.weather-rainy-night li:nth-child(5) { left: 35%; animation-delay: 0.2s; }
+
+
+/* --- Snowy --- */
+#the_world-toggle-btn.weather-snowy .snowe { position: absolute; top: 65%; left: 50%; transform: translateX(-50%); width: 15px; height: 15px; border-radius: 50%; background-color: #f1f1f1; z-index: 4;}
+#the_world-toggle-btn.weather-snowy .snowex { position: absolute; top: 52%; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; border-radius: 50%; background-color: #e0e0e0; z-index: 5;}
+#the_world-toggle-btn.weather-snowy .stick { position: absolute; top: 68%; left: calc(50% - 7px); width: 1.5px; height: 8px; transform: rotate(-45deg); background-color: #8B4513; z-index: 3;}
+#the_world-toggle-btn.weather-snowy .stick2 { position: absolute; top: 68%; left: calc(50% + 6px); width: 1.5px; height: 8px; transform: rotate(45deg); background-color: #8B4513; z-index: 3;}
+
+#the_world-toggle-btn.weather-snowy ul { z-index: 5; position: relative; padding:0; margin:0; }
+#the_world-toggle-btn.weather-snowy li {
+    position: absolute; list-style: none; width: 3px; height: 3px; border-radius: 100%;
+    background-color: #fff; box-shadow: 0 0 5px #fff;
+    animation: fall-small 3.5s infinite linear; opacity: 0;
+}
+#the_world-toggle-btn.weather-snowy li:nth-child(1) { top: 0%; left: 100%; }
+#the_world-toggle-btn.weather-snowy li:nth-child(2) { top: 5%; left: 90%; animation-delay: -0.5s;}
+#the_world-toggle-btn.weather-snowy li:nth-child(3) { top: -10%; left: 80%; animation-delay: -2s; }
+#the_world-toggle-btn.weather-snowy li:nth-child(4) { top: 10%; left: 100%; animation-delay: -2s; }
+#the_world-toggle-btn.weather-snowy li:nth-child(5) { top: 20%; left: 80%; animation-delay: -0.5s; }
+#the_world-toggle-btn.weather-snowy li:nth-child(6) { top: 35%; left: 70%; animation-delay: -1s; }
+#the_world-toggle-btn.weather-snowy li:nth-child(7) { top: 23%; left: 60%; animation-delay: -0.8s; }
+#the_world-toggle-btn.weather-snowy li:nth-child(8) { top: 5%; left: 70%; animation-delay: -1.2s; }
+
+/* --- Night (Clear) --- */
+#the_world-toggle-btn.weather-night-clear, #the_world-toggle-btn.weather-night-cloudy, #the_world-toggle-btn.weather-rainy-night {
+    background: linear-gradient(160deg, #192a56, #273c75);
+    box-shadow: 0 0 15px rgba(39, 60, 117, 0.6);
+}
+#the_world-toggle-btn .moon {
+    position: absolute; top: 15%; left: 65%;
+    width: 2em; height: 2em; border-radius: 100%;
+    background: #f1c40f; box-shadow: 0 0 10px #f1c40f;
+}
+#the_world-toggle-btn.weather-night-clear ul { position: relative; width: 100%; height: 100%; padding: 0; margin: 0;}
+#the_world-toggle-btn.weather-night-clear li { position: absolute; list-style: none; background-color: #fff; }
+#the_world-toggle-btn.weather-night-clear li:not(:nth-child(5)) { width: 2px; height: 2px; border-radius: 100%; }
+/* Star Positioning Fix */
+#the_world-toggle-btn.weather-night-clear li:nth-child(1) { top: 30%; left: 65%; animation: twinkle 2s infinite; }
+#the_world-toggle-btn.weather-night-clear li:nth-child(2) { top: 35%; left: 53%; animation: twinkle 2.5s infinite; }
+#the_world-toggle-btn.weather-night-clear li:nth-child(3) { top: 20%; left: 25%; animation: twinkle 3s infinite; }
+#the_world-toggle-btn.weather-night-clear li:nth-child(4) { top: 5%; left: 50%; }
+#the_world-toggle-btn.weather-night-clear li:nth-child(5) { /* meteor */
+    opacity: 0; top: 20%; left: 55%; width: 1px; height: 8px;
+    transform: rotate(45deg); animation: meteor-small 2.5s infinite linear;
+}
+
+/* --- Thunderstorm --- */
+#the_world-toggle-btn.weather-thunderstorm {
+    background: linear-gradient(160deg, #34495e, #2c3e50);
+    box-shadow: 0 0 15px rgba(44, 62, 80, 0.6);
+}
+.lightning-strike-svg {
+    position: absolute; top: 20px; left: 0; width: 100%; height: calc(100% - 20px);
+    z-index: 4; pointer-events: none;
+}
+.lightning-strike-path {
+    fill: none; stroke: white; stroke-width: 1.5px; animation: lightning-fade 0.5s ease-out forwards;
+}
+#the_world-toggle-btn.lightning-flash .cloud { animation: cloud-flash 0.5s ease-out; }
+
+/* --- Night Cloudy --- */
+#the_world-toggle-btn.weather-night-cloudy .moon { z-index: 1; animation: hide-moon 12s infinite ease-in-out; }
+
+/* --- Sunrise/Sunset --- */
+#the_world-toggle-btn.weather-sunrise-sunset {
+    background: linear-gradient(to top, #ff7e5f, #feb47b);
+    box-shadow: 0 0 15px rgba(255, 126, 95, 0.6);
+}
+#the_world-toggle-btn .horizon-line {
+    position: absolute; width: 150%; height: 100%; left: -25%; border-radius: 50%; z-index: 2;
+}
+#the_world-toggle-btn .horizon-1 { bottom: -80%; background: #e55d4b; opacity: 0.7; }
+#the_world-toggle-btn .horizon-2 { bottom: -85%; background: #c34a36; opacity: 0.9; }
+#the_world-toggle-btn .horizon-3 { bottom: -90%; background: #a13d2d; opacity: 1; }
+#the_world-toggle-btn .sun-disk {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: 2em; height: 2em; border-radius: 100%;
+    background: #f1c40f; box-shadow: 0 0 10px #f1c40f;
+    z-index: 1; animation: sunrise-small 8s infinite ease-in-out;
+}
+
+/* --- Sakura --- */
+#the_world-toggle-btn.weather-sakura {
+    background: linear-gradient(160deg, #FFC0CB, #FFB6C1);
+    box-shadow: 0 0 15px rgba(255, 182, 193, 0.6);
+}
+#the_world-toggle-btn.weather-sakura li {
+    position: absolute; list-style: none; width: 4px; height: 4px; border-radius: 50%;
+    background-color: #FFC0CB; box-shadow: 0 0 2px #fff, 0 0 5px #fff;
+    animation: sakura-fall-small 5s infinite linear; opacity: 0;
+}
+
+/* --- Fireflies --- */
+#the_world-toggle-btn.weather-fireflies {
+    background: linear-gradient(160deg, #192a56, #273c75);
+    box-shadow: 0 0 15px rgba(39, 60, 117, 0.6);
+}
+#the_world-toggle-btn.weather-fireflies li {
+    position: absolute; list-style: none; width: 2px; height: 2px; border-radius: 50%;
+    background-color: #D4FF9D; animation: firefly-wander-small 8s infinite ease-in-out;
+}
+#the_world-toggle-btn.weather-fireflies li:nth-child(1) { top: 20%; left: 80%; animation-delay: 0s; }
+#the_world-toggle-btn.weather-fireflies li:nth-child(2) { top: 40%; left: 20%; animation-delay: -2s; }
+#the_world-toggle-btn.weather-fireflies li:nth-child(3) { top: 60%; left: 60%; animation-delay: -5s; }
+#the_world-toggle-btn.weather-fireflies li:nth-child(4) { top: 80%; left: 30%; animation-delay: -3s; }
+#the_world-toggle-btn.weather-fireflies li:nth-child(5) { top: 50%; left: 90%; animation-delay: -7s; }
+
+
+/* --- Animations (Reused and Scaled) --- */
+@keyframes sun-pulse { 50% { transform: translate(-50%, -50%) scale(1.05); } }
+@keyframes cloud-move-front { 0% { margin-left: -20%; } 50% { margin-left: 20%; } 100% { margin-left: -20%; } }
+@keyframes cloud-move-mid { 0% { margin-left: -15%; } 50% { margin-left: 15%; } 100% { margin-left: -15%; } }
+@keyframes cloud-move-back { 0% { margin-left: -10%; } 50% { margin-left: 10%; } 100% { margin-left: -10%; } }
+@keyframes lightning-fade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cloud-flash { 0%, 100% { filter: brightness(1); } 5% { filter: brightness(1.8); } 15% { filter: brightness(1); } }
+@keyframes twinkle { 50% { transform: scale(1.2); opacity: 0.5; } }
+@keyframes hide-moon { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* Scaled Down Animations */
+@keyframes fall-small {
+    10% { opacity: 0.8; }
+    50% { opacity: 1; transform: translate(-5px, 20px) rotate(15deg); }
+    100% { transform: translate(-10px, 50px) rotate(15deg); opacity: 0; }
+}
+@keyframes meteor-small { 10% { opacity: 1; } 80% { left: 10%; top: 75%; opacity: 0; } }
+@keyframes sunrise-small { 0%, 100% { bottom: -20%; opacity: 0.5; } 50% { bottom: 25%; opacity: 1; } }
+@keyframes sakura-fall-small {
+    0% { transform: translate(0, 0) rotateZ(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    100% { transform: translate(-8px, 60px) rotateZ(360deg); opacity: 0; }
+}
+@keyframes firefly-wander-small {
+    0% { transform: translate(0,0); box-shadow: 0 0 4px #D4FF9D; opacity: 0.5; }
+    25% { transform: translate(6px, 8px); }
+    50% { transform: translate(-4px, -6px); box-shadow: 0 0 6px #D4FF9D; opacity: 1; }
+    75% { transform: translate(2px, -4px); }
+    100% { transform: translate(0,0); box-shadow: 0 0 4px #D4FF9D; opacity: 0.5; }
+}

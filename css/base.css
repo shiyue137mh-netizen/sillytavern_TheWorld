@@ -1,0 +1,816 @@
+/**
+ * The World - Base Panel & UI Styles
+ */
+
+#the_world-toggle-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 50px; /* Adjusted for new icon size */
+    height: 50px; /* Adjusted for new icon size */
+    background-color: rgba(30, 35, 45, .85);
+    color: #fff;
+    border-radius: 25%; /* Changed from 50% to look like an app icon */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* font-size: 20px; Removed emoji-specific style */
+    cursor: move;
+    z-index: 9998;
+    border: 1px solid #4a5568;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: transform .3s ease-in-out, box-shadow .3s ease-in-out; /* Added box-shadow transition */
+    overflow: hidden; /* Contain animations */
+}
+#the_world-toggle-btn:hover {
+    transform: scale(1.1)
+}
+
+/* --- New: Fullscreen FX Layer --- */
+#the_world-fx-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 10000; /* REVERTED: Placed on top of all UI */
+    overflow: hidden;
+}
+
+/* NEW: Dedicated Background FX Layer */
+#the_world-fx-layer-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: -1; /* Placed behind all UI */
+    overflow: hidden;
+}
+
+
+.tw-panel {
+    font-family: sans-serif;
+    position: fixed;
+    top: 60px;
+    width: 450px;
+    max-width: 50vw;
+    height: 60vh;
+    min-width: 280px;
+    min-height: 200px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, .5);
+    transition: all .3s ease-in-out;
+    background: rgba(0, 0, 0, .15);
+}
+.tw-panel.panel-blur-on .tw-theme-layers {
+    filter: blur(var(--rain-blur));
+}
+.tw-header {
+    padding: 10px 15px;
+    background-color: var(--header-bg);
+    cursor: move;
+    -webkit-user-select: none;
+    user-select: none;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1;
+    position: relative;
+    flex-shrink: 0;
+}
+.tw-header-controls {
+    display: flex;
+    gap: 10px;
+    position: relative;
+    z-index: 10;
+}
+.tw-minimize,
+.tw-close {
+    font-size: 20px;
+    cursor: pointer;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: all .2s cubic-bezier(0.42, 0, 0.58, 1);
+}
+.tw-close:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: scale(1.2) rotate(90deg);
+}
+.tw-minimize:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: scale(1.2);
+}
+.tw-tabs {
+    display: flex;
+    background-color: rgba(0, 0, 0, .1);
+    padding: 5px;
+    gap: 5px;
+    z-index: 1;
+    position: relative;
+    flex-shrink: 0;
+}
+.tw-tab-link {
+    flex-grow: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: all .2s ease-in-out
+}
+.tw-tab-link:hover {
+    background-color: rgba(255, 255, 255, .1)
+}
+.tw-tab-link.active {
+    background-color: var(--header-bg);
+    color: var(--text-main)
+}
+.tw-content {
+    flex-grow: 1;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+.tw-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 15px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity .3s ease-in-out, transform .3s ease-in-out;
+    pointer-events: none;
+}
+.tw-pane.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.tw-notice {
+    text-align: center;
+    color: var(--text-secondary)
+}
+.tw-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    z-index: 10;
+    background-image: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, .3) 40%, rgba(255, 255, 255, .3) 60%, transparent 60%), linear-gradient(135deg, transparent 70%, rgba(255, 255, 255, .3) 70%)
+}
+.has-ripple {
+    position: relative;
+    overflow: hidden
+}
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .3);
+    transform: scale(0);
+    animation: ripple-effect .6s linear
+}
+@keyframes ripple-effect {
+    to {
+        transform: scale(4);
+        opacity: 0
+    }
+}
+.locations_container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px
+}
+.location_card {
+    position: relative;
+    background: #3a3f47;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1), box-shadow 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+}
+.location_card:hover {
+    transform: translateY(-5px);
+    border-color: #8c9fb8;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .35)
+}
+.location_card:active {
+    transform: translateY(-2px) scale(0.98);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.sub_locations_container {
+    background-color: rgba(0, 0, 0, .15);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px
+}
+.location_card.has-bg {
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, .8);
+    background-size: cover;
+    background-position: center
+}
+.location_card.has-bg::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, .5);
+    border-radius: 8px
+}
+.location_card.has-bg:hover::before {
+    background-color: rgba(0, 0, 0, .3)
+}
+.location_card.selected {
+    border-color: #a0c4ff;
+    box-shadow: 0 0 12px #a0c4ff;
+    background-color: #4a5568
+}
+.travel_time {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font-size: 10px;
+    color: #ccc;
+    background-color: rgba(0, 0, 0, .5);
+    padding: 1px 4px;
+    border-radius: 4px
+}
+.location_echo {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    cursor: help;
+    font-size: 12px;
+    text-shadow: 0 0 3px #000
+}
+.location_name {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2
+}
+.location_icon,
+.npc_icon {
+    font-size: 1.2em
+}
+.characters_list {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    position: relative;
+    z-index: 2
+}
+.character_name {
+    background: rgba(0, 0, 0, .6);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px
+}
+.character_name.interactive {
+    cursor: pointer;
+    transition: all .2s
+}
+.character_name.interactive:hover {
+    background: rgba(0, 0, 0, .8);
+    color: #fff
+}
+.character_name.interactive:active {
+    transform: scale(.95) translateY(0);
+    opacity: .8
+}
+.map_action_area {
+    display: flex;
+    justify-content: center;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 15px
+}
+.go_button {
+    background-color: #738c82;
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    padding: 8px 25px;
+    font-size: 14px;
+    cursor: pointer
+}
+.go_button.disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    background-color: #4a5568
+}
+.ws-primary-info,
+.ws-secondary-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px
+}
+.ws-primary-info {
+    padding-bottom: 8px
+}
+.ws-separator {
+    border: none;
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 8px 0
+}
+.ws-info-block {
+    border: 1px solid var(--border-color);
+    border-radius: 20px; /* More rounded like a bubble */
+    padding: 8px 15px; /* Adjust padding for a better look */
+    font-size: 13px;
+    flex-grow: 1;
+    background-color: rgba(0, 0, 0, .2);
+    backdrop-filter: blur(1px);
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Add gap between icon and text */
+}
+.ws-info-block .ws-label {
+    margin-right: 8px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    white-space: nowrap
+}
+.ws-info-block .ws-value {
+    word-break: break-all;
+    font-size: 90%
+}
+.ws-scene-block {
+    width: 100%;
+    display: block
+}
+.ws-scene-block .ws-value {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 4px;
+    font-size: 100%
+}
+.ws-illustration-item {
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color)
+}
+.ws-illustration-item img {
+    max-width: 100%;
+    border-radius: 6px;
+    display: block;
+    margin: 4px auto 0
+}
+.ws-interactive-keyword {
+    color: #fff;
+    background-color: rgba(135, 206, 250, 0.5);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 95%;
+    cursor: pointer;
+}
+.ws-time-interact,
+.ws-weather-interact {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 8px;
+    transition: background-color 0.2s;
+}
+.ws-time-interact:hover,
+.ws-weather-interact:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color)
+}
+.settings-item:last-child {
+    border-bottom: none;
+}
+.settings-item-text {
+    flex-grow: 1;
+}
+.settings-item-text h4 {
+    margin: 0 0 4px 0;
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--text-main);
+}
+.settings-item-text p {
+    margin: 0;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+/* Fixed Toggle Switch CSS with higher specificity */
+.tw-panel .settings-item .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px
+}
+.tw-panel .settings-item .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0
+}
+.tw-panel .settings-item .toggle-switch label {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 28px
+}
+.tw-panel .settings-item .toggle-switch label:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: #fff;
+    transition: .4s;
+    border-radius: 50%
+}
+.tw-panel .settings-item .toggle-switch input:checked+label {
+    background-color: #2196f3
+}
+.tw-panel .settings-item .toggle-switch input:checked+label:before {
+    transform: translateX(22px)
+}
+/* End of Toggle Switch Fix */
+.clear-data-btn {
+    border: 1px solid #c0392b;
+    background-color: transparent;
+    color: #e74c3c;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer
+}
+#reset-ui-btn {
+    border-color: #3498db;
+    color: #3498db;
+}
+.ws-dialog-buttons button,
+.ws-dialog-actions button,
+.clear-data-btn,
+.go_button {
+    position: relative;
+    overflow: hidden;
+}
+.ws-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, .7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    animation: fadeIn .3s ease-in-out
+}
+.ws-dialog-overlay.closing {
+    animation: fadeOut .3s ease-in-out forwards
+}
+.ws-dialog {
+    background: #2c2f33;
+    padding: 20px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    border: 1px solid #4a4e56;
+    color: #c8c8d0;
+    animation: scaleIn .3s ease-in-out
+}
+.ws-dialog-overlay.closing .ws-dialog {
+    animation: scaleOut .3s ease-in-out forwards
+}
+.ws-dialog h3,
+.ws-dialog h4 {
+    margin-top: 0;
+    border-bottom: 1px solid #4a4e56;
+    padding-bottom: 10px;
+    font-size: 16px;
+    margin-bottom: 10px
+}
+.ws-dialog textarea {
+    width: 100%;
+    height: 80px;
+    background: #3a3f47;
+    border: 1px solid #4a4e56;
+    color: #c8c8d0;
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+    margin-top: 10px
+}
+.ws-dialog-buttons,
+.ws-dialog-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px
+}
+.ws-dialog-actions {
+    flex-wrap: wrap;
+    justify-content: center
+}
+.ws-dialog-actions button {
+    flex-grow: 1;
+    min-width: 45%
+}
+.ws-dialog-buttons button,
+.ws-dialog-actions button {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: #4a5568;
+    color: #fff;
+    transition: background-color .2s
+}
+.ws-dialog-buttons button.dialog_cancel {
+    background-color: transparent;
+    border: 1px solid #4a5568
+}
+.ws-dialog-buttons button:hover,
+.ws-dialog-actions button:hover {
+    background-color: #6c7a89
+}
+.ws-dialog-buttons .dialog_confirm {
+    background: #738c82
+}
+.ws-dialog-buttons .dialog_confirm:hover {
+    background: #8aa69a
+}
+.ws-dialog-separator {
+    border: none;
+    height: 1px;
+    background-color: #4a4e56;
+    margin: 15px 0
+}
+.ws-time-inputs {
+    display: grid;
+    grid-template-columns: 1.5fr auto 1fr auto 1fr auto .8fr auto .8fr;
+    gap: 5px;
+    align-items: center
+}
+.ws-time-inputs input {
+    background: #3a3f47;
+    border: 1px solid #4a4e56;
+    color: #c8c8d0;
+    border-radius: 6px;
+    padding: 8px 5px;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 30px
+}
+.ws-time-inputs span {
+    text-align: center;
+    font-weight: 700;
+    padding: 0 2px
+}
+.ws-weekday-buttons {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px
+}
+.ws-weekday-buttons button {
+    background-color: #3a3f47;
+    border: 1px solid #4a4e56;
+    padding: 8px 0
+}
+.ws-weekday-buttons button:hover {
+    background-color: #4f555e
+}
+.tw-panel.is-dragging {
+    transform: none !important;
+}
+.tw-panel .tw-tabs,
+.tw-panel .tw-content,
+.tw-panel .tw-resize-handle {
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.tw-panel {
+    transform: translateX(0) translateY(0);
+}
+.tw-panel.narrow-layout .ws-info-block {
+    flex-direction: column;
+    align-items: flex-start;
+}
+.tw-panel.narrow-layout .ws-info-block .ws-label {
+    margin-bottom: 4px;
+}
+.tw-panel.narrow-layout .locations_container {
+    grid-template-columns: 1fr;
+}
+@media (max-width: 480px) {
+    .tw-panel {
+        width: calc(100% - 20px) !important;
+        height: 70vh !important;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+    }
+    .tw-panel.minimized {
+        width: calc(100% - 20px) !important;
+        min-width: unset;
+        left: 10px !important;
+        right: 10px !important;
+    }
+    .tw-panel:not(.minimized) {
+        display: flex !important;
+    }
+    .tw-tab-link {
+        font-size: 13px;
+        padding: 8px 4px;
+    }
+    .ws-dialog {
+        width: 95%;
+        padding: 15px;
+        max-height: 80vh;
+        overflow-y: auto
+    }
+    .ws-dialog h3,
+    .ws-dialog h4 {
+        font-size: 14px
+    }
+    .ws-time-inputs {
+        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr))
+    }
+    .ws-weekday-buttons {
+        grid-template-columns: repeat(4, 1fr)
+    }
+    .ws-dialog-actions button {
+        min-width: 100px
+    }
+}
+@keyframes fadeIn {
+    from {
+        opacity: 0
+    }
+    to {
+        opacity: 1
+    }
+}
+@keyframes fadeOut {
+    from {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(.95)
+    }
+    to {
+        opacity: 1;
+        transform: scale(1)
+    }
+}
+@keyframes scaleOut {
+    from {
+        opacity: 1;
+        transform: scale(1)
+    }
+    to {
+        opacity: 0;
+        transform: scale(.95)
+    }
+}
+/**
+ * Inspired by animated-weather-cards
+ */
+
+.ws-details {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    padding: 10px 15px;
+    color: var(--text-main);
+    transition: color 0.5s ease;
+    align-items: center; /* Vertically align items */
+    gap: 15px;
+}
+
+.ws-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end; /* Align to the right */
+    gap: 4px;
+}
+
+.ws-summary {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.ws-weather-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ws-date {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.ws-content-inner {
+    padding: 0 15px 15px 15px;
+}
+
+.ws-time-display {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.ws-time-main {
+    font-size: 50px;
+    font-weight: 300;
+}
+
+.ws-time-main span {
+    font-size: 22px;
+}
+
+.ws-time-secondary {
+    margin-top: 5px;
+    color: var(--text-secondary);
+}
+
+.ws-date-full {
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.ws-date-full-single {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.ws-weekday {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.ws-right .ws-summary {
+     font-size: 18px;
+     font-weight: 600;
+}
+
+.ws-right .ws-date {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
