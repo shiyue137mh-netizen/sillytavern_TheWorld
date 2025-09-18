@@ -6,6 +6,7 @@ import { SakuraFX } from './effects/sakura.js';
 import { RainyDay } from './effects/rainydrops.js';
 import { Clouds3dFX } from './effects/complex/clouds_3d.js';
 import { VaporTrailFX } from './effects/vapor_trail.js';
+import { FireworksFX } from './effects/fireworks.js';
 
 export class WeatherSystem {
     constructor({ $, state, config, logger, injectionEngine, timeGradient }) {
@@ -21,6 +22,7 @@ export class WeatherSystem {
         this.rainyDayInstance = null;
         this.clouds3dInstance = new Clouds3dFX(effectDependencies);
         this.vaporTrailInstance = null;
+        this.fireworksInstance = null;
         this.lightningLoopTimeout = null;
         this.globalLightningLoopTimeout = null;
         this.weatherEffects = {
@@ -51,6 +53,7 @@ export class WeatherSystem {
         const isFoggy = safeWeatherString.includes('雾');
         const hasMeteors = safePeriodString.includes('夜') && safeWeatherString.includes('流星');
         const shouldShowSakura = safeWeatherString.includes('樱');
+        const shouldShowFireworks = safeWeatherString.includes('烟花');
         const isCloudy = (safeWeatherString.includes('云') && !safeWeatherString.includes('无云')) || safeWeatherString.includes('阴') || isRaining || isSnowing || safeWeatherString.includes('雷');
 
         const isNight = safePeriodString.includes('夜');
@@ -98,15 +101,26 @@ export class WeatherSystem {
 
         if (shouldShowSakura && !this.sakuraInstance) {
             this.logger.log('[天气系统] 正在激活樱花特效...');
-            const canvas = this.$('<canvas>').addClass('sakura-canvas').get(0);
-            $fgFxTarget.append(canvas);
-            this.sakuraInstance = Object.create(SakuraFX);
-            this.sakuraInstance.init(canvas);
+            const $canvas = this.$('<canvas>').addClass('sakura-canvas');
+            $fgFxTarget.append($canvas);
+            SakuraFX.init($canvas.get(0));
+            this.sakuraInstance = SakuraFX;
         } else if (!shouldShowSakura && this.sakuraInstance) {
             this.logger.log('[天气系统] 正在停止樱花特效...');
             this.sakuraInstance.stop();
             this.sakuraInstance = null;
         }
+
+        if (shouldShowFireworks && !this.fireworksInstance) {
+            this.logger.log('[天气系统] 正在激活烟花特效...');
+            this.fireworksInstance = new FireworksFX({ ...this.dependencies, $fxTarget: $fgFxTarget });
+            this.fireworksInstance.init();
+        } else if (!shouldShowFireworks && this.fireworksInstance) {
+            this.logger.log('[天气系统] 正在停止烟花特效...');
+            this.fireworksInstance.stop();
+            this.fireworksInstance = null;
+        }
+
 
         if (isRaining) { this.activateRainyDayEffect($panel); } 
         else if (this.rainyDayInstance) { this.rainyDayInstance.stop(); this.rainyDayInstance = null; }
@@ -130,13 +144,13 @@ export class WeatherSystem {
         
         if (this.state.weatherFxEnabled) {
             if (isGoodWeather && !$fgFxTarget.children('.tw-bird-container').length) {
-                if (Math.random() < 0.10) { 
+                if (Math.random() < 0.02) { 
                     this.logger.log('[天气系统] 正在触发飞鸟特效...');
                     this._createBirdAnimation($fgFxTarget);
                 }
             }
             if (isClearSky && !this.vaporTrailInstance) {
-                if (Math.random() < 0.20) { 
+                if (Math.random() < 0.025) { 
                     this.logger.log('[天气系统] 正在触发飞机尾迹云特效...');
                     this.vaporTrailInstance = new VaporTrailFX({
                         ...this.dependencies,
@@ -146,6 +160,38 @@ export class WeatherSystem {
                     this.vaporTrailInstance.init();
                 }
             }
+        }
+    }
+
+    triggerEffect(effectName) {
+        this.logger.log(`[Debug] 强制触发特效: ${effectName}`);
+        const $fxTarget = this.state.isFxGlobal 
+            ? this.$(`#${this.config.FX_LAYER_ID}`) 
+            : this.$(`#${this.config.PANEL_ID}`).find('.tw-fx-container-local');
+        
+        if (!$fxTarget.length) {
+            this.logger.error(`[Debug] 无法触发特效，找不到FX目标层。`);
+            return;
+        }
+
+        switch(effectName) {
+            case 'vapor_trail':
+                if (this.vaporTrailInstance) {
+                    this.logger.warn(`[Debug] 飞机尾迹云特效已在运行。`);
+                    return;
+                }
+                this.vaporTrailInstance = new VaporTrailFX({
+                    ...this.dependencies,
+                    $fxTarget: $fxTarget,
+                    onComplete: () => { this.vaporTrailInstance = null; }
+                });
+                this.vaporTrailInstance.init();
+                break;
+            case 'bird':
+                this._createBirdAnimation($fxTarget);
+                break;
+            default:
+                this.logger.warn(`[Debug] 未知的特效名称: ${effectName}`);
         }
     }
 
@@ -286,7 +332,7 @@ export class WeatherSystem {
     startThunderstormEffect($container) {
         if (!$container || !$container.length) return;
         const createStrike = () => {
-            const delay = 2000 + Math.random() * 6000;
+            const delay = 25000 + Math.random() * 5000;
             this.lightningLoopTimeout = setTimeout(() => {
                 if ($container.hasClass('weather-thunderstorm')) { 
                     this.createLightningStrike($container[0]);
@@ -300,7 +346,7 @@ export class WeatherSystem {
     startGlobalThunderstormEffect($container) {
         if (!$container || !$container.length) return;
         const createStrike = () => {
-            const delay = 5000; 
+            const delay = 25000 + Math.random() * 5000;
             this.globalLightningLoopTimeout = setTimeout(() => {
                 if ($container.find('.effect-thunder').length > 0) {
                     this.createLightningStrike($container[0]);
@@ -510,8 +556,10 @@ export class WeatherSystem {
         if (this.rainyDayInstance) this.rainyDayInstance.stop();
         if (this.sakuraInstance) this.sakuraInstance.stop();
         if (this.clouds3dInstance) this.clouds3dInstance.deactivate();
+        if (this.fireworksInstance) this.fireworksInstance.stop();
         this.rainyDayInstance = null;
         this.sakuraInstance = null;
+        this.fireworksInstance = null;
         const layers = [this.$(`#${this.config.FX_LAYER_ID}`), this.$(`#${this.config.PANEL_ID}`).find('.tw-fx-container-local'), this.$(`#${this.config.FX_LAYER_BG_ID}`)];
         layers.forEach($layer => {
             if ($layer.length) $layer.children().not('.tw-fx-glow, .sakura-canvas').remove();

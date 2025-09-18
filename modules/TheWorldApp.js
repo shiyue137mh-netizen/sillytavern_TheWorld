@@ -49,7 +49,7 @@ export class TheWorldApp {
             helper: this.TavernHelper,
             config: this.config,
             state: TheWorldState,
-            triggerSlash: this.parentWin.triggerSlash,
+            triggerSlash: this.parentWin.TavernHelper.triggerSlash, // CORRECTED: Point to TavernHelper's function
             logger: this.logger,
             timeGradient: this.timeGradient,
         };
@@ -62,6 +62,7 @@ export class TheWorldApp {
         this.stateParser = new StateParser(dependencies);
         
         const panelThemeManager = new PanelThemeManager(dependencies);
+        this.panelThemeManager = panelThemeManager; // Store for debug access
         const globalThemeManager = new GlobalThemeManager(dependencies);
         this.globalThemeManager = globalThemeManager;
         
@@ -96,6 +97,11 @@ export class TheWorldApp {
         }
 
         this.setupEventListeners();
+        
+        // Expose debug tools
+        this.parentWin.tw_debug = {
+            triggerEffect: (effectName) => this.panelThemeManager.weatherSystem.triggerEffect(effectName)
+        };
         
         const lastId = this.TavernHelper.getLastMessageId();
         if (lastId >= 0) {

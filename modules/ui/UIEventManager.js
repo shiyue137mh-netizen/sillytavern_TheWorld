@@ -98,7 +98,7 @@ export class UIEventManager {
                 clearLongPress();
             });
         
-        this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true);
+        // this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true); // REMOVED as per user request
 
         // Panel Interactions
         this.panelManager.makeDraggable($panel, $panel.find(`.${this.config.HEADER_CLASS}`));

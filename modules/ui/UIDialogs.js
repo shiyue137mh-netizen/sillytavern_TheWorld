@@ -3,12 +3,13 @@
  * @description Manages all popup dialogs.
  */
 export class UIDialogs {
-    constructor({ $, state, win, logger, config }) {
+    constructor({ $, state, win, logger, config, triggerSlash }) {
         this.$ = $;
         this.state = state;
         this.win = win;
         this.logger = logger;
         this.config = config;
+        this.triggerSlash = triggerSlash;
     }
 
     showKeywordInteractDialog(keyword) {
@@ -19,7 +20,7 @@ export class UIDialogs {
         dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
         dialog.find('.dialog_confirm').on('click', () => {
             const userInput = dialog.find("textarea").val() || `观察 ${keyword}`;
-            window.parent.triggerSlash(`/send {{user}} ${userInput} ${keyword}`);
+            this.triggerSlash(`/send {{user}} ${userInput} ${keyword} | /trigger`);
             this.removeDialog();
         });
     }
@@ -28,12 +29,12 @@ export class UIDialogs {
         this.removeDialog();
 
         const weatherData = {
-            '晴天': { variants: { '正常': {}, '流星': {}, '萤火虫': {} } },
+            '晴天': { variants: { '放晴': {}, '流星': {}, '萤火虫': {} } },
             '云':   { variants: { '少云': {}, '多云': {}, '阴天': {} } },
             '风':   { variants: { '微风': {}, '大风': {}, '狂风': {} } },
-            '雨':   { variants: { '小雨': {}, '中雨': {}, '大雨': {}, '暴雨': { addons: { '加雷电': {} } } } },
+            '雨':   { variants: { '小雨': {}, '中雨': {}, '大雨': {}, '暴雨': { addons: { '雷电': {} } } } },
             '雪':   { variants: { '小雪': {}, '中雪': {}, '大雪': {}, '暴雪': {} } },
-            '特殊': { variants: { '樱花': {}, '起雾': {} } }
+            '特殊': { variants: { '樱花雨': {}, '起雾': {}, '烟花': {} } }
         };
 
         const content = this.$(`
@@ -84,8 +85,8 @@ export class UIDialogs {
             const snap = () => {
                 const currentTop = parseInt($list.css('transform').split(',')[5] || 0, 10) || 0;
                 let selectedIndex = Math.round(-currentTop / itemHeight);
-                const itemCount = $list.children().length - 2;
-                selectedIndex = Math.max(0, Math.min(selectedIndex, itemCount - 1));
+                const itemCount = $list.children().length - 2; // -2 for top padding and bottom dummy li
+                selectedIndex = Math.max(0, Math.min(selectedIndex, itemCount - 1)); // Corrected boundary
 
                 $list.css('transform', `translateY(${-selectedIndex * itemHeight}px)`);
                 $list.children('.selected').removeClass('selected');
@@ -121,7 +122,13 @@ export class UIDialogs {
                 e.preventDefault();
                 const moveCoords = getCoords(e);
                 const deltaY = moveCoords.pageY - startY;
-                $list.css('transform', `translateY(${startTop + deltaY}px)`);
+                
+                const itemCount = $list.children().length - 2;
+                const minTop = -(itemCount - 1) * itemHeight; // Corrected boundary
+                const maxTop = 0; // First item
+                const newTop = Math.max(minTop, Math.min(maxTop, startTop + deltaY));
+
+                $list.css('transform', `translateY(${newTop}px)`);
             };
 
             const onDragEnd = () => {
@@ -171,12 +178,27 @@ export class UIDialogs {
         }, 50);
 
         dialog.find('.dialog_confirm').on('click', () => {
-            let finalWeather = selections.variant;
-            if (selections.addon) {
-                finalWeather += `并伴有${selections.addon.replace('加','')}`;
+            let finalText = '';
+            if (selections.type === '晴天') {
+                 switch(selections.variant) {
+                    case '放晴': finalText = '天空放晴，乌云散去，阳光洒了下来。'; break;
+                    case '流星': finalText = '夜空中划过数道流星。'; break;
+                    case '萤火虫': finalText = '几只萤火虫在黑暗中飞舞。'; break;
+                 }
+            } else if (selections.type === '特殊') {
+                 switch(selections.variant) {
+                    case '樱花雨': finalText = '风中带来了樱花瓣，下起了樱花雨。'; break;
+                    case '起雾': finalText = '四周开始起雾了。'; break;
+                    case '烟花': finalText = '夜空中绽放出绚烂的烟花。'; break;
+                 }
+            } else {
+                finalText = `天空${selections.variant}了。`;
+                if (selections.addon) {
+                    finalText = `天空${selections.variant}，并伴有${selections.addon}。`;
+                }
             }
-            const text = `天空${finalWeather}了`;
-            window.parent.triggerSlash(`/send <${text}>`);
+            
+            this.triggerSlash(`/send <${finalText}> | /trigger`);
             this.removeDialog();
         });
         dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
@@ -375,7 +397,8 @@ export class UIDialogs {
             const h = String(state.selectedDate.getHours()).padStart(2, '0');
             const min = String(state.selectedDate.getMinutes()).padStart(2, '0');
             const fullTimeString = `${y}年${m}月${d}日 ${h}:${min}`;
-            window.parent.triggerSlash(`/send <时间往前推进，来到“${fullTimeString}”>`);
+            const text = `时间流动，来到了${fullTimeString}。`;
+            this.triggerSlash(`/send <${text}> | /trigger`);
             this.removeDialog();
         });
     }
@@ -390,7 +413,7 @@ export class UIDialogs {
         dialog.find('.dialog_confirm').on('click', () => {
             const userInput = dialog.find('textarea').val() || `与 ${charName} 互动`;
             const command = `<request:{{user}}来到 ${charName} 的附近并${userInput}>`;
-            window.parent.triggerSlash(`/setinput ${command}`);
+            this.triggerSlash(`/send ${command} | /trigger`);
             this.removeDialog();
         });
     }
