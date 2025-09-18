@@ -3,10 +3,11 @@
  * @description Responsible for generating HTML content for the UI panes.
  */
 export class UIRenderer {
-    constructor({ $, config, state }) {
+    constructor({ $, config, state, skyThemeController }) {
         this.$ = $;
         this.config = config;
         this.state = state;
+        this.skyThemeController = skyThemeController;
     }
 
     getWeatherIconHtml(weather, period) {
@@ -68,7 +69,7 @@ export class UIRenderer {
             const [, year, month, day, weekday, time] = modernMatch;
             const [hour, minute] = time.split(':');
             timeHtml = `
-                <div class="ws-time-main">${hour}<span>:${minute}</span></div>
+                <div class="ws-time-main" id="tw-time-display-main">${hour}<span>:${minute}</span></div>
                 <div class="ws-time-secondary">
                     <div class="ws-date-full">${year} / ${String(month).padStart(2, '0')} / ${String(day).padStart(2, '0')}</div>
                     <div class="ws-weekday">${weekday || ''}</div>
@@ -79,13 +80,13 @@ export class UIRenderer {
             const datePart = timeString.replace(time, '').trim().replace(/,$/, '').trim();
             const [hour, minute] = time.split(':');
             timeHtml = `
-                <div class="ws-time-main">${hour}<span>:${minute}</span></div>
+                <div class="ws-time-main" id="tw-time-display-main">${hour}<span>:${minute}</span></div>
                 <div class="ws-time-secondary">
                     <div class="ws-date-full-single">${datePart}</div>
                 </div>
             `;
         } else {
-            timeHtml = `<div class="ws-time-secondary"><div class="ws-date-full-single">${timeString}</div></div>`;
+            timeHtml = `<div class="ws-time-secondary"><div class="ws-date-full-single" id="tw-time-display-main">${timeString}</div></div>`;
         }
         
         const weatherIconHtml = this.getWeatherIconHtml(weather, period);
@@ -191,7 +192,41 @@ export class UIRenderer {
     }
 
     renderSettingsPane($pane) {
-        const settingsContent = `
+        // Clear previous content
+        $pane.empty();
+
+        // 1. Theme Selection Section
+        const $themeList = this.$('<div class="theme-list"></div>');
+        if (this.skyThemeController && this.skyThemeController.availableThemes) {
+            this.skyThemeController.availableThemes.forEach(theme => {
+                const isActive = this.state.activeSkyThemeId === theme.id;
+                const $card = this.$(`
+                    <div class="theme-card ${isActive ? 'active' : ''}" data-theme-id="${theme.id}">
+                        <h4>${theme.name}</h4>
+                        <p>作者: ${theme.author}</p>
+                        <div class="theme-actions">
+                            <button class="btn-preview has-ripple">预览</button>
+                            <button class="btn-activate has-ripple">${isActive ? '当前' : '启用'}</button>
+                        </div>
+                    </div>
+                `);
+                $themeList.append($card);
+            });
+        }
+        const $themeSection = this.$(`
+            <div class="settings-item">
+                <div class="settings-item-text">
+                    <h4>天色主题</h4>
+                    <p>选择一个预设的天空颜色方案。</p>
+                </div>
+            </div>
+        `).append($themeList);
+
+        $pane.append($themeSection);
+        $pane.append('<hr class="ws-separator">');
+
+        // 2. Toggles and Buttons Section (unchanged logic, just appending)
+        const otherSettingsContent = `
             <div class="settings-item">
                 <div class="settings-item-text">
                     <h4>动态背景</h4>
@@ -243,6 +278,16 @@ export class UIRenderer {
                     <label for="weather-fx-toggle"></label>
                 </div>
             </div>
+            <div class="settings-item">
+                <div class="settings-item-text">
+                    <h4>3D云效</h4>
+                    <p>启用或禁用动态的3D体积云效果。</p>
+                </div>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="cloud-fx-toggle" ${this.state.isCloudFxEnabled ? 'checked' : ''}>
+                    <label for="cloud-fx-toggle"></label>
+                </div>
+            </div>
             <hr class="ws-separator">
             <div class="settings-item">
                 <div class="settings-item-text">
@@ -258,6 +303,6 @@ export class UIRenderer {
                 </div>
                 <button id="clear-all-data-btn" class="clear-data-btn has-ripple">🗑️ 清空所有存储</button>
             </div>`;
-        $pane.html(settingsContent);
+        $pane.append(otherSettingsContent);
     }
 }

@@ -16,6 +16,7 @@
 	right: 0;
 	bottom: 0; /* Changed */
 	overflow: hidden;
+    z-index: 1;
     /* Background is transparent, handled by the main theme engine */
 }
 
@@ -62,4 +63,5 @@
 	margin-top: -128px;
 	transition: opacity .5s ease-out, filter 2.5s ease-in-out;
 	background-image: url('../assets/images/cloud.png');
+	will-change: transform, opacity, filter; /* Performance Optimization */
 }

@@ -3,10 +3,12 @@
  * @description Manages all popup dialogs.
  */
 export class UIDialogs {
-    constructor({ $, triggerSlash, state }) {
+    constructor({ $, state, win, logger, config }) {
         this.$ = $;
-        this.triggerSlash = triggerSlash;
         this.state = state;
+        this.win = win;
+        this.logger = logger;
+        this.config = config;
     }
 
     showKeywordInteractDialog(keyword) {
@@ -17,34 +19,164 @@ export class UIDialogs {
         dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
         dialog.find('.dialog_confirm').on('click', () => {
             const userInput = dialog.find("textarea").val() || `观察 ${keyword}`;
-            this.triggerSlash(`/send {{user}} ${userInput} ${keyword}`);
+            window.parent.triggerSlash(`/send {{user}} ${userInput} ${keyword}`);
             this.removeDialog();
         });
     }
 
     showWeatherInteractDialog() {
         this.removeDialog();
-        const weatherOptions = [
-            { name: '晴天', icon: '☀️', text: '天空放晴，乌云散去，阳光洒了下来。' },
-            { name: '多云', icon: '☁️', text: '天空中的云层变多了。' },
-            { name: '刮风', icon: '🌬️', text: '风声从耳边传来，吹动了你的发梢。' },
-            { name: '小雨', icon: '🌧️', text: '突然一些雨点落了下来。' },
-            { name: '大雪', icon: '❄️', text: '天空飘下了雪花，越下越大。' },
-            { name: '打雷', icon: '⚡️', text: '天边传来一阵闷雷。' },
-            { name: '樱花', icon: '🌸', text: '风中带来了樱花瓣，开始了一场樱花雨。' },
-            { name: '流星', icon: '🌠', text: '夜空中划过数道流星。' },
-            { name: '萤火虫', icon: '✨', text: '几只萤火虫在黑暗中飞舞。' }
-        ];
-        const content = this.$(`<div class="ws-dialog-section"><h4>选择天气</h4><div class="ws-dialog-actions weather-actions"></div></div>`);
-        const actionsContainer = content.find('.weather-actions');
-        weatherOptions.forEach(opt => {
-            actionsContainer.append(this.$(`<button class="has-ripple" data-text="${opt.text}">${opt.icon} ${opt.name}</button>`));
-        });
-        const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button></div>');
+
+        const weatherData = {
+            '晴天': { variants: { '正常': {}, '流星': {}, '萤火虫': {} } },
+            '云':   { variants: { '少云': {}, '多云': {}, '阴天': {} } },
+            '风':   { variants: { '微风': {}, '大风': {}, '狂风': {} } },
+            '雨':   { variants: { '小雨': {}, '中雨': {}, '大雨': {}, '暴雨': { addons: { '加雷电': {} } } } },
+            '雪':   { variants: { '小雪': {}, '中雪': {}, '大雪': {}, '暴雪': {} } },
+            '特殊': { variants: { '樱花': {}, '起雾': {} } }
+        };
+
+        const content = this.$(`
+            <div class="tw-weather-scroller-container">
+                <div class="tw-weather-scroller-column" id="tw-weather-type"></div>
+                <div class="tw-weather-scroller-column" id="tw-weather-variant"></div>
+                <div class="tw-weather-scroller-column" id="tw-weather-addon"></div>
+                <div class="tw-weather-scroller-highlight"></div>
+            </div>
+        `);
+        
+        const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button><button class="dialog_confirm has-ripple">确认</button></div>');
         const dialog = this.createDialog('改变天气', content, buttons);
-        dialog.find('.weather-actions button').on('click', (e) => {
-            const text = this.$(e.currentTarget).data('text');
-            this.triggerSlash(`/send <${text}>`);
+
+        const columns = {
+            type: dialog.find('#tw-weather-type'),
+            variant: dialog.find('#tw-weather-variant'),
+            addon: dialog.find('#tw-weather-addon')
+        };
+        
+        let selections = { type: null, variant: null, addon: null };
+
+        const populateColumn = (colName, items) => {
+            const $col = columns[colName];
+            $col.empty();
+            if (!items || items.length === 0) {
+                $col.addClass('disabled');
+                return;
+            }
+            $col.removeClass('disabled');
+            const $list = this.$('<ul class="tw-weather-scroller-list">');
+            $list.css('padding-top', '50px'); // Padding for centering first item
+            items.forEach(item => {
+                $list.append(`<li class="tw-weather-scroller-item" data-value="${item}">${item}</li>`);
+            });
+            $list.append('<li class="tw-weather-scroller-item" style="height: 50px;"></li>'); // Padding for centering last item
+            $col.append($list);
+        };
+        
+        const setupScroller = ($col) => {
+            const $list = $col.find('.tw-weather-scroller-list');
+            if (!$list.length) return;
+
+            let isDragging = false, startY, startTop;
+            const itemHeight = 50;
+            const $doc = this.$(this.win.document);
+
+            const snap = () => {
+                const currentTop = parseInt($list.css('transform').split(',')[5] || 0, 10) || 0;
+                let selectedIndex = Math.round(-currentTop / itemHeight);
+                const itemCount = $list.children().length - 2;
+                selectedIndex = Math.max(0, Math.min(selectedIndex, itemCount - 1));
+
+                $list.css('transform', `translateY(${-selectedIndex * itemHeight}px)`);
+                $list.children('.selected').removeClass('selected');
+                const $selectedItem = $list.children().eq(selectedIndex);
+                $selectedItem.addClass('selected');
+
+                const colName = $col.attr('id').split('-')[2];
+                const newValue = $selectedItem.data('value');
+
+                if (selections[colName] !== newValue) {
+                    selections[colName] = newValue;
+                    updateDependentColumns(colName);
+                }
+            };
+            
+            const getCoords = e => e.type.startsWith('touch') ? e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] : e;
+
+            const onDragStart = (e) => {
+                if ($col.hasClass('disabled')) return;
+                e.preventDefault();
+                isDragging = true;
+                const coords = getCoords(e);
+                startY = coords.pageY;
+                startTop = parseInt($list.css('transform').split(',')[5] || 0, 10) || 0;
+                $list.css('transition', 'none');
+                $col.addClass('grabbing');
+                $doc.on('mousemove.tw_scroller touchmove.tw_scroller', onDragMove);
+                $doc.on('mouseup.tw_scroller touchend.tw_scroller', onDragEnd);
+            };
+
+            const onDragMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const moveCoords = getCoords(e);
+                const deltaY = moveCoords.pageY - startY;
+                $list.css('transform', `translateY(${startTop + deltaY}px)`);
+            };
+
+            const onDragEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                $col.removeClass('grabbing');
+                $list.css('transition', 'transform 0.2s ease-out');
+                snap();
+                $doc.off('.tw_scroller');
+            };
+
+            $col.on('mousedown.tw_scroller touchstart.tw_scroller', onDragStart);
+        };
+
+        const updateDependentColumns = (changedColName) => {
+            if (changedColName === 'type') {
+                const typeData = weatherData[selections.type];
+                const variantItems = typeData ? Object.keys(typeData.variants) : [];
+                populateColumn('variant', variantItems);
+                selections.variant = variantItems[0];
+                setupScroller(columns.variant);
+                columns.variant.find('.tw-weather-scroller-list').css('transform', 'translateY(0px)').children().eq(0).addClass('selected');
+            }
+
+            const typeData = weatherData[selections.type];
+            if (!typeData) return;
+            const variantData = typeData.variants[selections.variant];
+            const addonItems = (variantData && variantData.addons) ? Object.keys(variantData.addons) : [];
+            populateColumn('addon', addonItems);
+            selections.addon = addonItems.length > 0 ? addonItems[0] : null;
+            setupScroller(columns.addon);
+             if(addonItems.length > 0) {
+                columns.addon.find('.tw-weather-scroller-list').css('transform', 'translateY(0px)').children().eq(0).addClass('selected');
+            }
+        };
+
+        // Initial Population
+        const typeKeys = Object.keys(weatherData);
+        populateColumn('type', typeKeys);
+        selections.type = typeKeys[0];
+        updateDependentColumns('type');
+        Object.values(columns).forEach(setupScroller);
+        
+        setTimeout(() => {
+            columns.type.find('.tw-weather-scroller-list').children().eq(0).addClass('selected');
+            columns.variant.find('.tw-weather-scroller-list').children().eq(0).addClass('selected');
+        }, 50);
+
+        dialog.find('.dialog_confirm').on('click', () => {
+            let finalWeather = selections.variant;
+            if (selections.addon) {
+                finalWeather += `并伴有${selections.addon.replace('加','')}`;
+            }
+            const text = `天空${finalWeather}了`;
+            window.parent.triggerSlash(`/send <${text}>`);
             this.removeDialog();
         });
         dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
@@ -52,70 +184,200 @@ export class UIDialogs {
 
     showTimeInteractDialog() {
         this.removeDialog();
-        let y = '', m = '', d = '', h = '', min = '';
         const now = new Date();
+        let year, month, day, hour, minute, second;
+
         if (this.state.latestWorldStateData && this.state.latestWorldStateData['时间']) {
-            const match = this.state.latestWorldStateData['时间'].match(/(\d{4})[年-]?.*?(\d{1,2})[月-]?(\d{1,2})[日-]?.*?(\d{1,2}):(\d{1,2})/);
-            if (match) [, y, m, d, h, min] = match;
+            const match = this.state.latestWorldStateData['时间'].match(/(\d{4})[年-]?.*?(\d{1,2})[月-]?(\d{1,2})[日-]?.*?(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+            if (match) {
+                [, year, month, day, hour, minute, second] = match.map(Number);
+                month -= 1; 
+            }
         }
-        if (!y) y = now.getFullYear();
-        if (!m) m = now.getMonth() + 1;
-        if (!d) d = now.getDate();
-        if (!h) h = String(now.getHours()).padStart(2, '0');
-        if (!min) min = String(now.getMinutes()).padStart(2, '0');
+        
+        const currentDate = new Date(year || now.getFullYear(), month || now.getMonth(), day || now.getDate());
+        currentDate.setHours(hour || now.getHours());
+        currentDate.setMinutes(minute || now.getMinutes());
+        currentDate.setSeconds(second || 0);
+
+        const state = {
+            selectedDate: new Date(currentDate),
+            displayDate: new Date(currentDate),
+        };
 
         const content = this.$(`
-            <h4>快捷操作</h4>
-            <div class="ws-dialog-actions">
-                <button class="has-ripple" data-action="来到一小时后">[ 来到一小时后 ]</button>
-                <button class="has-ripple" data-action="来到天亮">[ 来到天亮 ]</button>
-                <button class="has-ripple" data-action="来到日出">[ 来到日出 ]</button>
-                <button class="has-ripple" data-action="来到日落">[ 来到日落 ]</button>
-                <button class="has-ripple" data-action="来到黄昏">[ 来到黄昏 ]</button>
-                <button class="has-ripple" data-action="来到午夜">[ 来到午夜 ]</button>
-            </div>
-            <hr class="ws-dialog-separator">
-            <h4>设定日期与时间</h4>
-            <div class="ws-time-inputs">
-                <input type="text" id="ws-year" value="${y}"><span>年</span>
-                <input type="text" id="ws-month" value="${m}"><span>月</span>
-                <input type="text" id="ws-day" value="${d}"><span>日</span>
-                <input type="text" id="ws-hour" value="${h}"><span>:</span>
-                <input type="text" id="ws-minute" value="${min}">
-            </div>
-            <hr class="ws-dialog-separator">
-            <div class="ws-dialog-section">
-                <h4>星期跳转</h4>
-                <div class="ws-weekday-buttons">
-                    <button class="has-ripple" data-weekday="一">一</button><button class="has-ripple" data-weekday="二">二</button>
-                    <button class="has-ripple" data-weekday="三">三</button><button class="has-ripple" data-weekday="四">四</button>
-                    <button class="has-ripple" data-weekday="五">五</button><button class="has-ripple" data-weekday="六">六</button>
-                    <button class="has-ripple" data-weekday="日">日</button>
+            <div class="tw-time-control-container">
+                <div class="tw-calendar-container">
+                    <div class="tw-calendar-header">
+                        <button id="tw-prev-month">◄</button>
+                        <span>
+                            <input type="number" id="tw-year-input" value="${state.displayDate.getFullYear()}" min="1"> 年 
+                            <input type="number" id="tw-month-input" value="${state.displayDate.getMonth() + 1}" min="1" max="12"> 月
+                        </span>
+                        <button id="tw-next-month">►</button>
+                    </div>
+                    <div class="tw-calendar">
+                        <table>
+                            <thead><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr></thead>
+                            <tbody id="tw-calendar-body"></tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>`);
-        const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button></div>');
-        const dialog = this.createDialog('时间流动', content, buttons);
+                <div class="tw-clock-wrapper">
+                    <div class="tw-clock-container">
+                        <div class="tw-clock">
+                            <div class="tw-clock-hand tw-hour-hand" id="tw-hour-hand"></div>
+                            <div class="tw-clock-hand tw-minute-hand" id="tw-minute-hand"></div>
+                            <div class="tw-clock-hand tw-second-hand" id="tw-second-hand"></div>
+                            <div class="tw-clock-center"></div>
+                        </div>
+                    </div>
+                    <div class="tw-digital-time">
+                        <input type="number" id="tw-hour-input" min="0" max="23">
+                        <span>:</span>
+                        <input type="number" id="tw-minute-input" min="0" max="59">
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button><button class="dialog_confirm has-ripple">确认</button></div>');
+        const dialog = this.createDialog('设定时间', content, buttons);
+        
+        const calendarBody = dialog.find('#tw-calendar-body');
+        const hourHand = dialog.find('#tw-hour-hand');
+        const minuteHand = dialog.find('#tw-minute-hand');
+        const secondHand = dialog.find('#tw-second-hand');
+        const hourInput = dialog.find('#tw-hour-input');
+        const minuteInput = dialog.find('#tw-minute-input');
+        const yearInput = dialog.find('#tw-year-input');
+        const monthInput = dialog.find('#tw-month-input');
 
-        dialog.find('.ws-dialog-actions button').on('click', (e) => {
-            const action = this.$(e.currentTarget).data('action');
-            this.triggerSlash(`/send 时间${action}`);
-            this.removeDialog();
+        const renderCalendar = () => {
+            calendarBody.empty();
+            const year = state.displayDate.getFullYear();
+            const month = state.displayDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let date = 1;
+            for (let i = 0; i < 6; i++) {
+                const row = this.$('<tr>');
+                for (let j = 0; j < 7; j++) {
+                    const cell = this.$('<td>');
+                    if (i === 0 && j < firstDay) {
+                        // empty cells
+                    } else if (date > daysInMonth) {
+                        break;
+                    } else {
+                        cell.text(date).data('day', date).addClass('tw-calendar-day');
+                        if (date === state.selectedDate.getDate() && month === state.selectedDate.getMonth() && year === state.selectedDate.getFullYear()) {
+                            cell.addClass('selected');
+                        }
+                        date++;
+                    }
+                    row.append(cell);
+                }
+                calendarBody.append(row);
+                if (date > daysInMonth) break;
+            }
+        };
+
+        const updateClock = (h, m, s) => {
+            const hourDeg = (h % 12 + m / 60) * 30;
+            const minuteDeg = m * 6;
+            const secondDeg = s * 6;
+            hourHand.css('transform', `translateX(-50%) rotate(${hourDeg}deg)`);
+            minuteHand.css('transform', `translateX(-50%) rotate(${minuteDeg}deg)`);
+            if (secondHand) {
+                 secondHand.css('transform', `translateX(-50%) rotate(${secondDeg}deg)`);
+            }
+        };
+
+        const updateInputs = (h, m) => {
+            hourInput.val(String(h).padStart(2, '0'));
+            minuteInput.val(String(m).padStart(2, '0'));
+        };
+        
+        const updateAll = () => {
+            const h = state.selectedDate.getHours();
+            const m = state.selectedDate.getMinutes();
+            const s = state.selectedDate.getSeconds();
+            yearInput.val(state.displayDate.getFullYear());
+            monthInput.val(state.displayDate.getMonth() + 1);
+            renderCalendar();
+            updateClock(h, m, s);
+            updateInputs(h, m);
+        };
+        
+        updateAll();
+        
+        this.$(this.win.document).on('tw-time-tick.twDialog', (e, time) => {
+            state.selectedDate.setHours(time.hours, time.minutes, time.seconds);
+            updateClock(time.hours, time.minutes, time.seconds);
+            if (!hourInput.is(':focus') && !minuteInput.is(':focus')) {
+                updateInputs(time.hours, time.minutes);
+            }
         });
 
-        dialog.find('.ws-weekday-buttons button').on('click', (e) => {
-            const weekday = this.$(e.currentTarget).data('weekday');
-            this.triggerSlash(`/send <时间往前推进，来到星期${weekday}>`);
-            this.removeDialog();
+        dialog.find('#tw-prev-month').on('click', () => { state.displayDate.setMonth(state.displayDate.getMonth() - 1); updateAll(); });
+        dialog.find('#tw-next-month').on('click', () => { state.displayDate.setMonth(state.displayDate.getMonth() + 1); updateAll(); });
+        yearInput.on('change', () => { state.displayDate.setFullYear(parseInt(yearInput.val())); updateAll(); });
+        monthInput.on('change', () => { state.displayDate.setMonth(parseInt(monthInput.val()) - 1); updateAll(); });
+        calendarBody.on('click', '.tw-calendar-day', (e) => {
+            const day = this.$(e.currentTarget).data('day');
+            state.selectedDate.setFullYear(state.displayDate.getFullYear(), state.displayDate.getMonth(), day);
+            updateAll();
         });
+
+        hourInput.on('change', () => { state.selectedDate.setHours(parseInt(hourInput.val())); updateAll(); });
+        minuteInput.on('change', () => { state.selectedDate.setMinutes(parseInt(minuteInput.val())); updateAll(); });
+
+        const handleHandDrag = (e, hand) => {
+            e.preventDefault();
+            const clock = dialog.find('.tw-clock-container');
+            const rect = clock[0].getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const moveHandler = (moveEvent) => {
+                const clientX = moveEvent.clientX || moveEvent.touches[0].clientX;
+                const clientY = moveEvent.clientY || moveEvent.touches[0].clientY;
+                const angle = Math.atan2(clientY - centerY, clientX - centerX) * (180 / Math.PI) + 90;
+                
+                if (hand === 'hour') {
+                    let h = Math.round((angle < 0 ? angle + 360 : angle) / 30);
+                    if (h === 0) h = 12;
+                    if (state.selectedDate.getHours() >= 12 && h !== 12) h += 12;
+                    else if (state.selectedDate.getHours() < 12 && h === 12) h = 0;
+                    state.selectedDate.setHours(h);
+                } else if (hand === 'minute') {
+                    let m = Math.round((angle < 0 ? angle + 360 : angle) / 6);
+                    if (m === 60) m = 0;
+                    state.selectedDate.setMinutes(m);
+                }
+                updateAll();
+            };
+
+            this.$(document).on('mousemove touchmove', moveHandler).one('mouseup touchend', () => {
+                this.$(document).off('mousemove touchmove', moveHandler);
+            });
+        };
+
+        hourHand.on('mousedown touchstart', (e) => handleHandDrag(e, 'hour'));
+        minuteHand.on('mousedown touchstart', (e) => handleHandDrag(e, 'minute'));
 
         dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
-
-        dialog.find('.ws-dialog-buttons').prepend(this.$('<button class="dialog_confirm has-ripple">确认</button>').on('click', () => {
-            const yearVal = this.$('#ws-year').val(), monthVal = this.$('#ws-month').val(), dayVal = this.$('#ws-day').val(), hourVal = this.$('#ws-hour').val(), minuteVal = this.$('#ws-minute').val();
-            const fullTimeString = `${yearVal}年${monthVal}月${dayVal}日 ${hourVal}:${minuteVal}`;
-            this.triggerSlash(`/send <时间往前推进，来到“${fullTimeString}”>`);
+        dialog.find('.dialog_confirm').on('click', () => {
+            const y = state.selectedDate.getFullYear();
+            const m = state.selectedDate.getMonth() + 1;
+            const d = state.selectedDate.getDate();
+            const h = String(state.selectedDate.getHours()).padStart(2, '0');
+            const min = String(state.selectedDate.getMinutes()).padStart(2, '0');
+            const fullTimeString = `${y}年${m}月${d}日 ${h}:${min}`;
+            window.parent.triggerSlash(`/send <时间往前推进，来到“${fullTimeString}”>`);
             this.removeDialog();
-        }));
+        });
     }
 
     showNpcInteractDialog(charName) {
@@ -128,13 +390,51 @@ export class UIDialogs {
         dialog.find('.dialog_confirm').on('click', () => {
             const userInput = dialog.find('textarea').val() || `与 ${charName} 互动`;
             const command = `<request:{{user}}来到 ${charName} 的附近并${userInput}>`;
-            this.triggerSlash(`/setinput ${command}`);
+            window.parent.triggerSlash(`/setinput ${command}`);
             this.removeDialog();
         });
     }
 
+    async showThemePreviewDialog(themeId) {
+        this.removeDialog();
+        try {
+            const scriptUrl = new URL(import.meta.url);
+            const basePath = scriptUrl.pathname.substring(0, scriptUrl.pathname.lastIndexOf('/modules'));
+            const themeUrl = `${basePath}/themes/sky/${themeId}.json`;
+            const response = await fetch(themeUrl);
+            if (!response.ok) throw new Error(`获取 ${themeId}.json 失败`);
+            const themeData = await response.json();
+
+            const $previewContainer = this.$('<div class="theme-preview-container"></div>');
+            
+            const gradients = themeData.gradients.filter(g => g.hour < 24);
+
+            gradients.forEach(gradient => {
+                const gradientCss = `linear-gradient(to bottom, ${gradient.colors[0]}, ${gradient.colors[1]})`;
+                const $strip = this.$('<div class="theme-gradient-strip"></div>').css('background', gradientCss);
+                $strip.append(`<span class="time-label">${String(gradient.hour).padStart(2, '0')}:00</span>`);
+                $previewContainer.append($strip);
+            });
+
+            const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button></div>');
+            const dialog = this.createDialog(`预览: ${themeData.name}`, $previewContainer, buttons);
+            dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
+
+        } catch (error) {
+            console.error("Failed to show theme preview:", error);
+            const content = this.$('<p>无法加载主题预览。</p>');
+            const buttons = this.$('<div class="ws-dialog-buttons"><button class="dialog_cancel has-ripple">关闭</button></div>');
+            const dialog = this.createDialog('错误', content, buttons);
+            dialog.find('.dialog_cancel').on('click', () => this.removeDialog());
+        }
+    }
+
     createDialog(title, content, buttons) {
-        const dialog = this.$(`<div class="ws-dialog-overlay"><div class="ws-dialog"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
+        const panelClass = this.$(`#${this.config.PANEL_ID}`).attr('class') || '';
+        const themeClassMatch = panelClass.match(/theme-(light|dark)-text/);
+        const themeClass = themeClassMatch ? themeClassMatch[0] : 'theme-dark-text';
+
+        const dialog = this.$(`<div class="ws-dialog-overlay ${themeClass}"><div class="ws-dialog"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
         dialog.find(".dialog-content").append(content);
         dialog.find(".dialog-buttons-wrapper").append(buttons);
         this.$("body").append(dialog);
@@ -147,6 +447,8 @@ export class UIDialogs {
     }
 
     removeDialog() {
+        this.$(this.win.document).off('.twDialog');
+        this.$(this.win.document).off('.tw_scroller');
         const overlay = this.$(".ws-dialog-overlay");
         if (overlay.length > 0) {
             overlay.addClass("closing");

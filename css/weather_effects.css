@@ -81,6 +81,7 @@
 }
 
 .star {
+    z-index: 0;
     background: radial-gradient(circle, #fff 0, transparent 70%);
     border-radius: 50%;
     animation: twinkle linear infinite;
@@ -110,6 +111,52 @@
     height: 100%;
     z-index: 1;
 }
+
+.nebula-blur {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.15;
+    filter: blur(25px);
+    pointer-events: none;
+    will-change: transform, opacity;
+    animation: nebula-drift 120s infinite linear alternate;
+}
+
+/* CORRECT OLD Milky Way Effect - RESTORED */
+.milky-way-container {
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+.milky-way-container .star {
+    position: absolute;
+    border-radius: 50%;
+    background-color: white;
+    opacity: 0.8;
+}
+.milky-way-container .blink {
+    animation: blink ease-in-out infinite;
+}
+.milky-way-container .star-0 { height: 0.5px; width: 0.5px; }
+.milky-way-container .star-1 { height: 1px; width: 1px; }
+.milky-way-container .star-2 { height: 1.5px; width: 1.5px; }
+.milky-way-container .star-3 { height: 2px; width: 2px; }
+.milky-way-container .star-4 { height: 2.5px; width: 2.5px; box-shadow: 0px 0px 6px 1px rgba(255,255,255,0.5); }
+.milky-way-container .star-5 { height: 2.5px; width: 2.5px; box-shadow: 0px 0px 6px 1px rgba(255,255,255,0.7); }
+.milky-way-container .stars-cross { position: absolute; top: 10%; left: 0px; width: 120%; height: 20%; transform: rotate(20deg); transform-origin: top left; }
+.milky-way-container .stars-cross-aux { position: absolute; top: 0%; left: 10%; width: 120%; height: 10%; transform: rotate(20deg); transform-origin: top left; }
+.milky-way-container .nebula-milky-way {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 1;
+    filter: blur(15px);
+    width: 5px;
+    height: 10px;
+}
+
 
 /* Animations */
 @keyframes fall {
@@ -221,4 +268,12 @@
     50% {
         transform: scale(1)
     }
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+@keyframes nebula-drift {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.15; }
+    50% { transform: translate(2vw, 1vh) scale(1.05); opacity: 0.25; }
+    100% { transform: translate(0, 0) scale(1); opacity: 0.15; }
 }

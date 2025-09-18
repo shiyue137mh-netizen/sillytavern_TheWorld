@@ -17,11 +17,15 @@ export const TheWorldState = {
     panelLeft: null,
 
     // --- Settings State ---
+    activeSkyThemeId: 'default', // NEW: To store the selected sky theme
     isGlobalThemeEngineEnabled: false, // New state for the global feature
     isFxGlobal: false,
     isImmersiveModeEnabled: false, // New toggle for the "glass" effect
     isRaindropFxOn: false,
     weatherFxEnabled: true,
+    isCloudFxEnabled: true,
     locationFxEnabled: true,
-    celestialFxEnabled: true
+    celestialFxEnabled: true,
+    isSkygazingModeActive: false,
+    hasLoadedBefore: false
 };

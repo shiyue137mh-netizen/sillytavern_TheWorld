@@ -1,0 +1,26 @@
+{
+  "id": "default",
+  "name": "蔚蓝天空",
+  "author": "The World Team",
+  "periodOverrides": {
+    "日落": { "colors": ["#163C52", "#B7490F"], "brightness": "dark" },
+    "黄昏": { "colors": ["#154277", "#b26339"], "brightness": "dark" },
+    "默认恶劣天气": { "colors": ["#34495e", "#2c3e50"], "brightness": "dark" }
+  },
+  "gradients": [
+    { "hour": 0, "colors": ["#00000c", "#00000c"], "brightness": "dark" },
+    { "hour": 4, "colors": ["#20202c", "#515175"], "brightness": "dark" },
+    { "hour": 5, "colors": ["#40405c", "#6f71aa"], "brightness": "dark" },
+    { "hour": 6, "colors": ["#4a4969", "#cd82a0"], "brightness": "dark" },
+    { "hour": 8, "colors": ["#82addb", "#ebb2b1"], "brightness": "light" },
+    { "hour": 11, "colors": ["#9be2fe", "#67d1fb"], "brightness": "light" },
+    { "hour": 12, "colors": ["#90dffe", "#38a3d1"], "brightness": "light" },
+    { "hour": 16, "colors": ["#2473ab", "#5b7983"], "brightness": "dark" },
+    { "hour": 17, "colors": ["#1e528e", "#e9ce5d"], "brightness": "dark" },
+    { "hour": 18, "colors": ["#154277", "#b26339"], "brightness": "dark" },
+    { "hour": 18.5, "colors": ["#163C52", "#B7490F"], "brightness": "dark" },
+    { "hour": 18.75, "colors": ["#010A10", "#2F1107"], "brightness": "dark" },
+    { "hour": 19, "colors": ["#00000c", "#150800"], "brightness": "dark" },
+    { "hour": 24, "colors": ["#00000c", "#00000c"], "brightness": "dark" }
+  ]
+}

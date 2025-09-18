@@ -1,0 +1,16 @@
+{
+  "id": "eternal_night",
+  "name": "永夜",
+  "author": "The World Team",
+  "periodOverrides": {
+    "日出": { "colors": ["#10081c", "#181028"], "brightness": "dark" },
+    "日落": { "colors": ["#10081c", "#181028"], "brightness": "dark" }
+  },
+  "gradients": [
+    { "hour": 0, "colors": ["#00000c", "#10081c"], "brightness": "dark" },
+    { "hour": 6, "colors": ["#10081c", "#181028"], "brightness": "dark" },
+    { "hour": 12, "colors": ["#181028", "#201830"], "brightness": "dark" },
+    { "hour": 18, "colors": ["#10081c", "#181028"], "brightness": "dark" },
+    { "hour": 24, "colors": ["#00000c", "#10081c"], "brightness": "dark" }
+  ]
+}

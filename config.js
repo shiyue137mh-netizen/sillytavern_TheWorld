@@ -9,7 +9,8 @@ export const Config = {
     TOGGLE_BUTTON_ID: 'the_world-toggle-btn',
     FX_LAYER_ID: 'the_world-fx-layer',
     FX_LAYER_BG_ID: 'the_world-fx-layer-bg',
-    GLOBAL_THEME_STYLE_ID: 'the-world-global-theme-style', // New ID for injected styles
+    GLOBAL_THEME_STYLE_ID: 'the-world-global-theme-style',
+    SKYGAZING_STYLE_ID: 'the-world-skygazing-style',
     
     STORAGE_KEYS: { 
         WORLD_STATE: 'tw-world-state', 

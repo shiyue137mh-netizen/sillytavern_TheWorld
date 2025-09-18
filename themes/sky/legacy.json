@@ -1,0 +1,25 @@
+
+{
+  "id": "legacy",
+  "name": "传奇日落",
+  "author": "The World Team",
+  "periodOverrides": {
+    "默认恶劣天气": { "colors": ["#6c7a89", "#95a5a6"], "brightness": "dark" }
+  },
+  "gradients": [
+    { "hour": 0, "colors": ["#0f141c", "#1a202c"], "brightness": "dark" },
+    { "hour": 4, "colors": ["#1a202c", "#5c7a96"], "brightness": "dark" },
+    { "hour": 5.5, "colors": ["#2c3e50", "#768ca0"], "brightness": "dark" },
+    { "hour": 6.5, "colors": ["#5c7a96", "#e8c5d1"], "brightness": "light" },
+    { "hour": 7.0, "colors": ["#3b4371", "#f3904f"], "brightness": "dark" },
+    { "hour": 8.0, "colors": ["#6685ae", "#b3c2d9"], "brightness": "light" },
+    { "hour": 9.0, "colors": ["#87cefa", "#f0f8ff"], "brightness": "light" },
+    { "hour": 16.0, "colors": ["#87cefa", "#f0f8ff"], "brightness": "light" },
+    { "hour": 17.0, "colors": ["#50a5f1", "#ffd49a"], "brightness": "light" },
+    { "hour": 17.75, "colors": ["#f7b733", "#fc4a1a"], "brightness": "dark" },
+    { "hour": 18.5, "colors": ["#d35400", "#6a3093"], "brightness": "dark" },
+    { "hour": 19.25, "colors": ["#0d1a2f", "#d78a4e"], "brightness": "dark" },
+    { "hour": 21, "colors": ["#1a202c", "#0f141c"], "brightness": "dark" },
+    { "hour": 24, "colors": ["#0f141c", "#1a202c"], "brightness": "dark" }
+  ]
+}

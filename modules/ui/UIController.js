@@ -6,23 +6,23 @@ import { UIRenderer } from './UIRenderer.js';
 import { UIDialogs } from './UIDialogs.js';
 import { UIPanelManager } from './UIPanelManager.js';
 import { UIEventManager } from './UIEventManager.js';
+import { TimeAnimator } from './TimeAnimator.js';
 
 export class UIController {
-    constructor({ panelThemeManager, globalThemeManager, ...dependencies }) {
-        this.dependencies = { ...dependencies, panelThemeManager, globalThemeManager };
+    constructor({ panelThemeManager, globalThemeManager, skyThemeController, ...dependencies }) {
+        this.dependencies = { ...dependencies, panelThemeManager, globalThemeManager, skyThemeController };
         this.$ = dependencies.$;
         this.config = dependencies.config;
         this.state = dependencies.state;
         this.logger = dependencies.logger;
 
-        const renderer = new UIRenderer(dependencies);
+        const renderer = new UIRenderer(this.dependencies);
         const dialogs = new UIDialogs(dependencies);
         this.panelManager = new UIPanelManager(dependencies);
+        this.timeAnimator = new TimeAnimator(dependencies);
         
         const eventManager = new UIEventManager({
-            ...dependencies,
-            panelThemeManager: panelThemeManager,
-            globalThemeManager: globalThemeManager,
+            ...this.dependencies,
             renderer: renderer,
             dialogs: dialogs,
             panelManager: this.panelManager,
@@ -84,16 +84,19 @@ export class UIController {
         const $mapPane = this.$('#map-nav-pane').empty();
         const $settingsPane = this.$('#settings-pane').empty();
 
+        this.timeAnimator.stop();
+
         if (this.state.latestWorldStateData) {
             this.logger.log('检测到世界状态数据，正在渲染...');
             this.panelThemeManager.applyThemeAndEffects(this.state.latestWorldStateData);
             this.renderer.renderWorldStatePane($wsPane, this.state.latestWorldStateData);
+            if (this.state.latestWorldStateData['时间']) {
+                this.timeAnimator.start(this.state.latestWorldStateData['时间']);
+            }
         } else {
             this.logger.log('无世界状态数据，显示等待信息。');
-            const $panel = this.$(`#${this.config.PANEL_ID}`);
-            $panel.attr('class', 'tw-panel theme-day');
             this.panelThemeManager.weatherSystem.clearAllWeatherEffects(true);
-            this.panelThemeManager.applyThemeAndEffects({}); // Apply default theme to button
+            this.panelThemeManager.applyThemeAndEffects({}); // Apply default theme to button and panel
             $wsPane.html('<p class="tw-notice">等待世界状态数据...</p>');
         }
 

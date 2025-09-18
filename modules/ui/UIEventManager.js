@@ -6,6 +6,45 @@ export class UIEventManager {
     constructor(dependencies) {
         // Assign all dependencies passed from UIController
         Object.assign(this, dependencies);
+        this.longPressTimer = null;
+        this.pressStartTime = 0;
+    }
+
+    toggleSkygazingMode() {
+        this.state.isSkygazingModeActive = !this.state.isSkygazingModeActive;
+        this.logger.log(`仰望天空模式切换为: ${this.state.isSkygazingModeActive}`);
+        const $body = this.$(this.win.document.body);
+
+        if (this.state.isSkygazingModeActive) {
+            // Hide the panel if it's open, to not obstruct the view
+            if (this.state.isPanelVisible) {
+                this.panelManager.togglePanel(false);
+            }
+
+            const css = `
+                body.the-world-skygazing-mode > *:not(#the_world-toggle-btn):not(.tw-global-theme-container):not(#the_world-fx-layer):not(#the_world-fx-layer-bg):not(#${this.config.SKYGAZING_STYLE_ID}):not(.ws-dialog-overlay) {
+                    transition: opacity 0.5s ease-out;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                }
+                /* Explicitly hide some elements that might not be direct children or are important to hide */
+                body.the-world-skygazing-mode #the_world-panel,
+                body.the-world-skygazing-mode .modal,
+                body.the-world-skygazing-mode .ws-dialog-overlay {
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                }
+                body.the-world-skygazing-mode #the_world-toggle-btn {
+                    z-index: 10001 !important;
+                }
+            `;
+            this.injectionEngine.injectCss(this.config.SKYGAZING_STYLE_ID, css);
+            $body.addClass('the-world-skygazing-mode');
+
+        } else {
+            this.injectionEngine.removeCss(this.config.SKYGAZING_STYLE_ID);
+            $body.removeClass('the-world-skygazing-mode');
+        }
     }
 
     bindAllEvents() {
@@ -13,12 +52,52 @@ export class UIEventManager {
         const $body = this.$('body');
         const $panel = this.$(`#${this.config.PANEL_ID}`);
         
-        // Toggle Button
+        // Toggle Button - with long press for Skygazing and short press for panel toggle
         const $toggleBtn = this.$(`#${this.config.TOGGLE_BUTTON_ID}`);
-        $toggleBtn.on('click.tw_toggle', (e) => {
-            e.stopPropagation();
-            this.panelManager.togglePanel();
-        });
+        
+        const clearLongPress = () => {
+            if (this.longPressTimer) {
+                clearTimeout(this.longPressTimer);
+                this.longPressTimer = null;
+            }
+            $toggleBtn.removeClass('long-press-active');
+            $toggleBtn.find('.long-press-indicator').remove();
+        };
+
+        $toggleBtn
+            .off('.tw_toggle') // Remove all previous tw_toggle namespaced events
+            .on('mousedown.tw_toggle touchstart.tw_toggle', (e) => {
+                if (e.type === 'mousedown' && e.which !== 1) return; // Ignore non-left clicks
+
+                this.pressStartTime = Date.now();
+                
+                $toggleBtn.append('<div class="long-press-indicator"></div>');
+                setTimeout(() => $toggleBtn.addClass('long-press-active'), 10);
+
+                this.longPressTimer = setTimeout(() => {
+                    this.toggleSkygazingMode();
+                    this.longPressTimer = null; // Mark as fired
+                }, 5000);
+            })
+            .on('mouseup.tw_toggle touchend.tw_toggle', (e) => {
+                if (this.longPressTimer === null) { // Long press already fired
+                    clearLongPress();
+                    return;
+                }
+
+                const pressDuration = Date.now() - this.pressStartTime;
+                clearLongPress();
+                
+                if (pressDuration < 500) { // Click threshold
+                     e.stopPropagation();
+                     this.panelManager.togglePanel();
+                }
+            })
+            .on('mouseleave.tw_toggle', () => {
+                // Cancel if mouse leaves button
+                clearLongPress();
+            });
+        
         this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true);
 
         // Panel Interactions
@@ -73,13 +152,27 @@ export class UIEventManager {
         });
 
         // Settings Pane
+        $panel.on('click.tw_settings', '.btn-activate', async (e) => {
+            const $button = this.$(e.currentTarget);
+            if ($button.text() === '当前') return;
+            const themeId = $button.closest('.theme-card').data('theme-id');
+            await this.skyThemeController.applyTheme(themeId);
+            this.renderer.renderSettingsPane(this.$('#settings-pane'));
+        });
+        
+        $panel.on('click.tw_settings', '.btn-preview', (e) => {
+            const themeId = this.$(e.currentTarget).closest('.theme-card').data('theme-id');
+            this.dialogs.showThemePreviewDialog(themeId);
+        });
+
         $panel.on('change.tw_settings', '#settings-pane input[type="checkbox"]', (e) => {
             const keyMap = {
                 'global-theme-toggle': 'isGlobalThemeEngineEnabled',
                 'immersive-mode-toggle': 'isImmersiveModeEnabled',
                 'fx-global-toggle': 'isFxGlobal',
                 'raindrop-fx-toggle': 'isRaindropFxOn',
-                'weather-fx-toggle': 'weatherFxEnabled'
+                'weather-fx-toggle': 'weatherFxEnabled',
+                'cloud-fx-toggle': 'isCloudFxEnabled'
             };
             const key = keyMap[e.target.id];
             if (key) {
@@ -91,15 +184,16 @@ export class UIEventManager {
                     this.$('#immersive-mode-toggle').prop('disabled', !isEnabled);
                     
                     if (isEnabled) {
-                        this.timeGradient.activate();
+                        this.globalThemeManager.activate();
                     } else {
-                        this.timeGradient.deactivate();
+                        this.globalThemeManager.deactivate();
                     }
                 }
                 
-                // Always update themes if any of these toggles change
-                if (key === 'isGlobalThemeEngineEnabled' || key === 'isImmersiveModeEnabled') {
-                    this.timeGradient.updateTheme();
+                if (key === 'isImmersiveModeEnabled') {
+                     if (this.globalThemeManager.isActive) {
+                        this.globalThemeManager.updateTheme();
+                    }
                 }
 
                 // Update panel specific effects

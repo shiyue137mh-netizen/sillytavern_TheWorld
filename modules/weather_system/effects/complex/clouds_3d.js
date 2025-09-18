@@ -75,23 +75,23 @@ export class Clouds3dFX {
 
     updateCloudColor(period, weather) {
         if (!this.isActive || !this.world) return;
-    
-        let filter = 'brightness(1)'; // Default for sunny day
-        const isBadWeather = weather.includes('雷') || weather.includes('雨') || weather.includes('雪') || weather.includes('阴');
-    
-        if (isBadWeather) {
-            if (weather.includes('雷')) {
-                filter = 'brightness(0.55) contrast(1.1) grayscale(0.3)';
-            } else {
-                filter = 'brightness(0.75) contrast(0.9) saturate(0.8) grayscale(0.2)';
-            }
-        } else if (period.includes('日落') || period.includes('黄昏')) {
-            filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)';
-        } else if (period.includes('日出') || period.includes('清晨')) {
-            filter = 'sepia(0.3) hue-rotate(-15deg) saturate(1.5) brightness(1.1)';
-        } else if (period.includes('夜')) {
-            filter = 'brightness(0.35) contrast(1.1) grayscale(0.5)';
+
+        let filter = 'brightness(1)'; // Default: White clouds for clear/cloudy weather.
+
+        // Priority 1 (Black): Severe weather (thunder/storm) or night/dusk.
+        if (weather.includes('雷') || weather.includes('暴雨') || period.includes('夜') || period.includes('黄昏')) {
+            filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)';
         }
+        // Priority 2 (Gray): General rain, snow, or overcast conditions. This will now correctly override sunrise/sunset.
+        else if (weather.includes('雨') || weather.includes('雪') || weather.includes('阴')) {
+            filter = 'brightness(0.75) contrast(0.9) saturate(0.8) grayscale(0.2)';
+        }
+        // Priority 3 (Colorful): Sunrise/sunset, only if the weather is not rainy/stormy/etc.
+        else if (period.includes('日出') || period.includes('日落') || period.includes('清晨')) {
+            filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)';
+        }
+        
+        // The default 'brightness(1)' for White clouds is used if no other condition is met.
         
         this.$(this.world).find('.cloudLayer').css('filter', filter);
     }
@@ -117,7 +117,8 @@ export class Clouds3dFX {
     _generate() {
         this.layers = [];
         this.$(this.world).empty();
-        const baseCount = 25;
+        // PERFORMANCE OPTIMIZATION: Reduced the base number of cloud clusters
+        const baseCount = 12;
         const cloudCount = Math.min(60, Math.floor(baseCount * this.density.count));
         this.logger.log(`[3D Clouds] Generating ${cloudCount} cloud clusters based on density ${this.density.count}`);
 
@@ -136,7 +137,8 @@ export class Clouds3dFX {
         div.style.transform = t;
         this.world.appendChild(div);
 
-        for (let j = 0; j < 5 + Math.round(Math.random() * 10); j++) {
+        // PERFORMANCE OPTIMIZATION: Reduced the number of layers per cluster
+        for (let j = 0; j < 4 + Math.round(Math.random() * 4); j++) {
             const cloud = document.createElement('div');
             cloud.style.opacity = `${0.6 + Math.random() * 0.4}`;
             cloud.className = 'cloudLayer';

@@ -5,6 +5,7 @@
 import { SakuraFX } from './effects/sakura.js';
 import { RainyDay } from './effects/rainydrops.js';
 import { Clouds3dFX } from './effects/complex/clouds_3d.js';
+import { VaporTrailFX } from './effects/vapor_trail.js';
 
 export class WeatherSystem {
     constructor({ $, state, config, logger, injectionEngine, timeGradient }) {
@@ -14,10 +15,12 @@ export class WeatherSystem {
         this.logger = logger;
 
         const effectDependencies = { $, state, config, logger, injectionEngine, timeGradient };
+        this.dependencies = effectDependencies;
         
         this.sakuraInstance = null;
         this.rainyDayInstance = null;
         this.clouds3dInstance = new Clouds3dFX(effectDependencies);
+        this.vaporTrailInstance = null;
         this.lightningLoopTimeout = null;
         this.globalLightningLoopTimeout = null;
         this.weatherEffects = {
@@ -34,7 +37,6 @@ export class WeatherSystem {
 
         this.logger.log('[天气系统] 正在更新天气效果...', { weather: safeWeatherString, period: safePeriodString, season: safeSeasonString });
 
-        // Define Foreground (FG) and Background (BG) effect targets
         const $localFxContainer = $panel.find('.tw-fx-container-local');
         const $globalFgFxLayer = this.$(`#${this.config.FX_LAYER_ID}`);
         const $globalBgFxLayer = this.$(`#${this.config.FX_LAYER_BG_ID}`);
@@ -42,31 +44,43 @@ export class WeatherSystem {
         const $fgFxTarget = this.state.isFxGlobal ? $globalFgFxLayer : $localFxContainer;
         const $bgFxTarget = this.state.isFxGlobal ? $globalBgFxLayer : $localFxContainer;
 
-
         const density = this.getWeatherDensity(safeWeatherString);
         const isRaining = safeWeatherString.includes('雨') && !safeWeatherString.includes('雪');
         const isSnowing = safeWeatherString.includes('雪');
         const isWindy = density.wind > 0;
         const isFoggy = safeWeatherString.includes('雾');
-        const hasStars = safePeriodString.includes('夜') && safeWeatherString.includes('星') && !safeWeatherString.match(/([雨雪云雾])/);
-        const hasFireflies = safePeriodString.includes('夜') && safeWeatherString.includes('萤火');
         const hasMeteors = safePeriodString.includes('夜') && safeWeatherString.includes('流星');
         const shouldShowSakura = safeWeatherString.includes('樱');
         const isCloudy = (safeWeatherString.includes('云') && !safeWeatherString.includes('无云')) || safeWeatherString.includes('阴') || isRaining || isSnowing || safeWeatherString.includes('雷');
 
-
-        // 3D Clouds Effect (Rendered to BACKGROUND layer)
-        if (this.state.weatherFxEnabled && isCloudy) {
+        const isNight = safePeriodString.includes('夜');
+        const noBadWeather = !safeWeatherString.match(/([雨雪雷])/);
+        const isGoodWeather = !safeWeatherString.match(/([雨雪雷])/);
+        const isClearSky = safeWeatherString.includes('晴') && !safeWeatherString.match(/([雨雪雷云雾])/);
+        const hasMilkyWay = isNight && noBadWeather && safeWeatherString.includes('银河');
+        const hasRegularStars = isNight && noBadWeather && safeWeatherString.includes('星') && !hasMilkyWay;
+        const hasFireflies = isNight && safeWeatherString.includes('萤火');
+        
+        if (this.state.weatherFxEnabled && this.state.isCloudFxEnabled && isCloudy) {
             this.clouds3dInstance.activate(safePeriodString, safeWeatherString, density, $bgFxTarget);
         } else {
             this.clouds3dInstance.deactivate();
         }
 
-        let newEffect = { type: null, variant: null, density: 0, targetCount: 0, particleClass: null, creator: null, interval: 0 };
+        this._manageStaticEffect('star', hasRegularStars, 150, () => this._createComplexStar(), $bgFxTarget);
+
+        if (hasMilkyWay) {
+            this._renderMilkyWay($bgFxTarget);
+        } else {
+            const $existingMilkyWay = $bgFxTarget.find('.milky-way-container');
+            if ($existingMilkyWay.length) {
+                $existingMilkyWay.addClass('fading-out');
+                setTimeout(() => $existingMilkyWay.remove(), 3000);
+            }
+        }
         
-        // All other particle effects are rendered to the FOREGROUND layer
+        let newEffect = { type: null, variant: null, density: 0, targetCount: 0, particleClass: null, creator: null, interval: 0 };
         if (this.state.weatherFxEnabled) {
-            this.logger.log('[天气系统] 天气粒子特效已启用。');
             if (isRaining) {
                 newEffect = { type: 'rain', variant: isWindy ? 'windy' : 'normal', density: density.count, particleClass: 'particle-wrapper', targetCount: 50 * density.count, interval: 150 / density.speed,
                     creator: () => { const p = this.$('<div class="raindrop"></div>').css('opacity', Math.random()*.6+.2); if(isWindy) p.addClass(density.wind>=1.5?'slanted-strong':'slanted-light'); const w = this._createParticleWrapper(density, 'rain').append(p); $fgFxTarget.append(w); } };
@@ -77,11 +91,10 @@ export class WeatherSystem {
                  newEffect = { type: 'wind', variant: 'normal', density: density.count, particleClass: 'leaf', targetCount: 15 * density.count, interval: 300 / density.speed,
                     creator: () => { let p = (safeSeasonString.includes('春')) ? ['🍃', '🌸'] : (safeSeasonString.includes('秋')) ? ['🍂', '🍁'] : ['🍃']; const h = p[Math.floor(Math.random() * p.length)]; const l = this.$('<div></div>').addClass('leaf').html(h).css({ fontSize: `${12+Math.random()*8}px`, animationDuration: `${(10+Math.random()*8)/density.speed}s`, animationDelay: `-${Math.random()*10}s`, left: `${Math.random()*100}%`, animationName: this.state.isFxGlobal?'fall-sway-rotate-global':'fall-sway-rotate-local' }); $fgFxTarget.append(l); } };
             }
-        } else {
-            this.logger.log('[天气系统] 天气粒子特效已禁用。');
         }
-        
         this._manageContinuousEffect(newEffect, $fgFxTarget);
+        this._manageStaticEffect('firefly', hasFireflies, 20 * density.count, () => { const size = `${2+Math.random()*2}px`; return this.$('<div>').addClass('firefly').css({ width:size, height:size, left:`${Math.random()*100}%`, top:`${Math.random()*100}%`, animationDuration:`${4+Math.random()*4}s`, animationDelay:`${Math.random()*8}s` }); }, $fgFxTarget);
+
 
         if (shouldShowSakura && !this.sakuraInstance) {
             this.logger.log('[天气系统] 正在激活樱花特效...');
@@ -95,36 +108,178 @@ export class WeatherSystem {
             this.sakuraInstance = null;
         }
 
-        if (isRaining) {
-            this.activateRainyDayEffect($panel);
-        } else {
-            if (this.rainyDayInstance) {
-                this.rainyDayInstance.stop();
-                this.rainyDayInstance = null;
-            }
-        }
+        if (isRaining) { this.activateRainyDayEffect($panel); } 
+        else if (this.rainyDayInstance) { this.rainyDayInstance.stop(); this.rainyDayInstance = null; }
 
         this._manageStaticEffect('fog-layer', isFoggy, 5, () => this.$('<div>').addClass('fog-layer').css({ animationDuration: `${20+Math.random()*15}s`, animationDelay: `${Math.random()*5}s`, opacity: Math.random()*.2+.1 }), $fgFxTarget);
-        this._manageStaticEffect('star', hasStars, 80, () => { const yPos = Math.random()*50, opacity = 1-yPos/50, size=`${1+Math.random()*2}px`; return this.$('<div>').addClass('star').css({ width:size, height:size, left:`${Math.random()*100}%`, top:`${yPos}%`, animationDuration:`${3+Math.random()*4}s`, animationDelay:`${Math.random()*7}s`, opacity:opacity }); }, $fgFxTarget);
-        this._manageStaticEffect('firefly', hasFireflies, 20 * density.count, () => { const size = `${2+Math.random()*2}px`; return this.$('<div>').addClass('firefly').css({ width:size, height:size, left:`${Math.random()*100}%`, top:`${Math.random()*100}%`, animationDuration:`${4+Math.random()*4}s`, animationDelay:`${Math.random()*8}s` }); }, $fgFxTarget);
         this._manageMeteorEffect(hasMeteors, $fgFxTarget);
         
-        clearTimeout(this.lightningLoopTimeout);
-        this.lightningLoopTimeout = null;
-        clearTimeout(this.globalLightningLoopTimeout);
-        this.globalLightningLoopTimeout = null;
+        clearTimeout(this.lightningLoopTimeout); this.lightningLoopTimeout = null;
+        clearTimeout(this.globalLightningLoopTimeout); this.globalLightningLoopTimeout = null;
 
         $fgFxTarget.find('.effect-thunder').remove(); 
         if (this.state.weatherFxEnabled && safeWeatherString.includes('雷')) {
             this.logger.log('[天气系统] 正在激活雷电效果。');
-            
             this.clouds3dInstance.triggerLightning();
             this.startThunderstormEffect($toggleBtn); 
-
             if(this.state.isFxGlobal) {
                 $fgFxTarget.append(this.$('<div>').addClass('effect-thunder')); 
                 this.startGlobalThunderstormEffect($fgFxTarget);
             }
+        }
+        
+        if (this.state.weatherFxEnabled) {
+            if (isGoodWeather && !$fgFxTarget.children('.tw-bird-container').length) {
+                if (Math.random() < 0.10) { 
+                    this.logger.log('[天气系统] 正在触发飞鸟特效...');
+                    this._createBirdAnimation($fgFxTarget);
+                }
+            }
+            if (isClearSky && !this.vaporTrailInstance) {
+                if (Math.random() < 0.20) { 
+                    this.logger.log('[天气系统] 正在触发飞机尾迹云特效...');
+                    this.vaporTrailInstance = new VaporTrailFX({
+                        ...this.dependencies,
+                        $fxTarget: $fgFxTarget,
+                        onComplete: () => { this.vaporTrailInstance = null; }
+                    });
+                    this.vaporTrailInstance.init();
+                }
+            }
+        }
+    }
+
+    _createComplexStar() {
+        const nightsky = ["#280F36", "#632B6C", "#BE6590", "#FFC1A0", "#FE9C7F"];
+        const rand = Math.random();
+        const dur = 2 + Math.random() * 6;
+        let $star;
+
+        if (rand < 0.6) { // 60% chance for a simple white star
+            const size = `${0.5 + Math.random() * 1.5}px`;
+            $star = this.$('<div>').addClass('star').css({
+                width: size, height: size
+            });
+            if (Math.random() < 0.5) $star.addClass('blink');
+        } else if (rand < 0.8) { // 20% chance for a slightly bigger white star with shadow
+            const size = `${2 + Math.random() * 1}px`;
+            $star = this.$('<div>').addClass('star star-4').css({
+                 width: size, height: size,
+                 boxShadow: `0px 0px 6px 1px rgba(255,255,255,${0.3 + Math.random() * 0.3})`
+            }).addClass('blink');
+        } else { // 20% chance for a colored star
+            const size = `${1 + Math.random() * 1}px`;
+            const color = nightsky[Math.floor(Math.random() * nightsky.length)];
+            const shadow = nightsky[Math.floor(Math.random() * nightsky.length)];
+            $star = this.$('<div>').addClass('star star-1 blink').css({
+                width: size, height: size,
+                backgroundColor: color,
+                boxShadow: `0px 0px 6px 1px ${shadow}`
+            });
+        }
+
+        $star.css({
+            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+            animationDuration: `${dur}s`,
+            animationDelay: `${Math.random() * dur}s`,
+            opacity: 0.4 + Math.random() * 0.6
+        });
+        return $star;
+    }
+    
+    _renderMilkyWay($fxTarget) {
+        if ($fxTarget.find('.milky-way-container').length > 0) return;
+
+        this.logger.log('[天气系统] 渲染银河彩蛋...');
+        const $container = this.$('<div>').addClass('milky-way-container');
+        const $stars = this.$('<div>').addClass('stars');
+        const $starsCross = this.$('<div>').addClass('stars-cross');
+        const $starsCrossAux = this.$('<div>').addClass('stars-cross-aux');
+        $container.append($stars, $starsCross, $starsCrossAux);
+
+        const nightsky = ["#280F36", "#632B6C", "#BE6590", "#FFC1A0", "#FE9C7F"];
+        const getRandomInt = (min, max) => Math.random() * (max - min) + min;
+
+        const templates = {
+            star0: (top, left, dur) => `<div class='star star-0' style='top:${top}%;left:${left}%;animation-duration:${dur}s;'></div>`,
+            star1: (top, left, dur) => `<div class='star star-1 blink' style='top:${top}%;left:${left}%;animation-duration:${dur}s;'></div>`,
+            star2: (top, left, dur) => `<div class='star star-2 blink' style='top:${top}%;left:${left}%;animation-duration:${dur}s;'></div>`,
+            star4: (top, left, dur) => `<div class='star star-4 blink' style='top:${top}%;left:${left}%;animation-duration:${dur}s;'></div>`,
+            star5: (top, left, dur, color) => `<div class='star star-5' style='top:${top}%;left:${left}%;animation-duration:${dur}s;background-color:${color}'></div>`,
+            blur: (top, left, color) => `<div class='nebula-milky-way' style='top:${top}%;left:${left}%;background-color:${color}'></div>`,
+            star1pt: (top, left, dur, color, shadow) => `<div class='star star-1 blink' style='top:${top}%;left:${left}%;animation-duration:${dur}s;background-color:${color};box-shadow:0px 0px 6px 1px ${shadow}'></div>`,
+            star2pt: (top, left, dur, color, shadow) => `<div class='star star-2' style='top:${top}%;left:${left}%;animation-duration:${dur}s;background-color:${color};box-shadow:0px 0px 10px 1px ${shadow};opacity:0.7'></div>`
+        };
+
+        for (let i = 0; i < 500; i++) {
+            $stars.append(templates.star1(getRandomInt(0, 40), getRandomInt(0, 100), getRandomInt(2, 5)));
+            $stars.append(templates.star2(getRandomInt(20, 70), getRandomInt(0, 100), getRandomInt(4, 8)));
+        }
+        for (let i = 0; i < 150; i++) {
+            $stars.append(templates.star0(getRandomInt(0, 50), getRandomInt(0, 100), getRandomInt(1, 2.5)));
+            $stars.append(templates.star1(getRandomInt(0, 50), getRandomInt(0, 100), getRandomInt(2.5, 4)));
+            $stars.append(templates.star2(getRandomInt(0, 50), getRandomInt(0, 100), getRandomInt(4, 5)));
+        }
+        for (let i = 0; i < 100; i++) {
+            $stars.append(templates.star0(getRandomInt(40, 75), getRandomInt(0, 100), getRandomInt(1, 3)));
+            $stars.append(templates.star1(getRandomInt(40, 75), getRandomInt(0, 100), getRandomInt(2, 4)));
+        }
+        for (let i = 0; i < 250; i++) {
+            $stars.append(templates.star0(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(1, 2)));
+            $stars.append(templates.star1(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(2, 5)));
+            $stars.append(templates.star2(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(1, 4)));
+            $stars.append(templates.star4(getRandomInt(0, 70), getRandomInt(0, 100), getRandomInt(5, 7)));
+        }
+        for (let i = 0; i < 150; i++) {
+            $stars.append(templates.star4(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(5, 7)));
+            const color1 = nightsky[Math.floor(getRandomInt(0, nightsky.length))];
+            const shadow1 = nightsky[Math.floor(getRandomInt(0, nightsky.length))];
+            $starsCross.append(templates.blur(getRandomInt(0, 100), getRandomInt(0, 100), color1));
+            $starsCross.append(templates.star1pt(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(6, 12), color1, shadow1));
+        }
+        for (let i = 0; i < 50; i++) {
+            const color2 = nightsky[Math.floor(getRandomInt(0, nightsky.length))];
+            const shadow2 = nightsky[Math.floor(getRandomInt(0, nightsky.length))];
+            if(i % 2 === 0){
+                $stars.append(templates.star5(getRandomInt(0, 50), getRandomInt(0, 100), getRandomInt(5, 7), color2));
+            }
+            $starsCrossAux.append(templates.blur(getRandomInt(0, 100), getRandomInt(0, 100), color2));
+            $starsCrossAux.append(templates.star2pt(getRandomInt(0, 100), getRandomInt(0, 100), getRandomInt(4, 10), color2, shadow2));
+        }
+
+        $fxTarget.append($container);
+    }
+
+    _createBirdAnimation($fxTarget) {
+        const animationClass = `tw-fly-path--${1 + Math.floor(Math.random() * 4)}`;
+        const duration = 15 + Math.random() * 10;
+        
+        const $birdContainer = this.$('<div>')
+            .addClass('tw-bird-container')
+            .addClass(animationClass)
+            .css({
+                'top': `${10 + Math.random() * 40}%`,
+                'animation-duration': `${duration}s`
+            });
+            
+        const $bird = this.$('<div>')
+            .addClass('tw-bird')
+            .addClass(`tw-bird--${1 + Math.floor(Math.random() * 4)}`);
+            
+        $birdContainer.append($bird);
+        $fxTarget.append($birdContainer);
+        
+        setTimeout(() => {
+            $birdContainer.remove();
+        }, duration * 1000);
+    }
+    
+    _clearAllParticles($fxTarget) {
+        const selectors = ['.particle-wrapper', '.leaf', '.star', '.firefly', '.shooting_star', '.fog-layer', '.milky-way-container'];
+        const particles = $fxTarget.children(selectors.join(', '));
+        if (particles.length > 0) {
+            this.logger.log(`[天气系统] Clearing particles: ${selectors.join(', ')}`);
+            particles.remove();
         }
     }
 
@@ -357,7 +512,7 @@ export class WeatherSystem {
         if (this.clouds3dInstance) this.clouds3dInstance.deactivate();
         this.rainyDayInstance = null;
         this.sakuraInstance = null;
-        const layers = [this.$(`#${this.config.FX_LAYER_ID}`), this.$(`#${this.config.PANEL_ID}`).find('.tw-fx-container-local')];
+        const layers = [this.$(`#${this.config.FX_LAYER_ID}`), this.$(`#${this.config.PANEL_ID}`).find('.tw-fx-container-local'), this.$(`#${this.config.FX_LAYER_BG_ID}`)];
         layers.forEach($layer => {
             if ($layer.length) $layer.children().not('.tw-fx-glow, .sakura-canvas').remove();
         });

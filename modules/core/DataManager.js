@@ -38,17 +38,20 @@ export class DataManager {
         };
         
         assignSetting('isPanelVisible', this.state.isPanelVisible);
+        assignSetting('activeSkyThemeId', this.state.activeSkyThemeId);
         assignSetting('isGlobalThemeEngineEnabled', this.state.isGlobalThemeEngineEnabled);
         assignSetting('isFxGlobal', this.state.isFxGlobal);
         assignSetting('isImmersiveModeEnabled', this.state.isImmersiveModeEnabled);
         assignSetting('isRaindropFxOn', this.state.isRaindropFxOn);
         assignSetting('weatherFxEnabled', this.state.weatherFxEnabled);
+        assignSetting('isCloudFxEnabled', this.state.isCloudFxEnabled);
         assignSetting('locationFxEnabled', this.state.locationFxEnabled);
         assignSetting('celestialFxEnabled', this.state.celestialFxEnabled);
         assignSetting('panelWidth', this.state.panelWidth);
         assignSetting('panelHeight', this.state.panelHeight);
         assignSetting('panelTop', this.state.panelTop);
         assignSetting('panelLeft', this.state.panelLeft);
+        assignSetting('hasLoadedBefore', this.state.hasLoadedBefore);
     }
 
     saveState() {
@@ -58,17 +61,20 @@ export class DataManager {
 
         const settings = {
             isPanelVisible: this.state.isPanelVisible,
+            activeSkyThemeId: this.state.activeSkyThemeId,
             isGlobalThemeEngineEnabled: this.state.isGlobalThemeEngineEnabled,
             isFxGlobal: this.state.isFxGlobal,
             isImmersiveModeEnabled: this.state.isImmersiveModeEnabled,
             isRaindropFxOn: this.state.isRaindropFxOn,
             weatherFxEnabled: this.state.weatherFxEnabled,
+            isCloudFxEnabled: this.state.isCloudFxEnabled,
             locationFxEnabled: this.state.locationFxEnabled,
             celestialFxEnabled: this.state.celestialFxEnabled,
             panelWidth: this.state.panelWidth,
             panelHeight: this.state.panelHeight,
             panelTop: this.state.panelTop,
             panelLeft: this.state.panelLeft,
+            hasLoadedBefore: this.state.hasLoadedBefore,
         };
         this.logger.log('正在保存的设置:', settings);
         this._storage('save', this.config.STORAGE_KEYS.SETTINGS, settings);
@@ -84,6 +90,7 @@ export class DataManager {
         this.state.isPanelVisible = false;
         this.state.selectedMainLocation = null;
         this.state.selectedSubLocation = null;
+        this.state.hasLoadedBefore = false;
 
         // Re-load to apply default settings
         this.loadState();

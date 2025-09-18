@@ -1,6 +1,7 @@
 /**
  * The World - Panel Theme Manager
- * @description Manages the visual theme and atmospheric effects for the panel itself.
+ * @description Manages the visual theme and atmospheric effects for the panel and toggle button.
+ * V4: Implements two-layer background for the toggle button for smooth transitions.
  */
 import { WeatherSystem } from '../weather_system/index.js';
 
@@ -10,98 +11,127 @@ export class ThemeManager {
         this.state = dependencies.state;
         this.config = dependencies.config;
         this.logger = dependencies.logger;
+        
         this.weatherSystem = new WeatherSystem(dependencies);
+        this.timeGradient = dependencies.timeGradient; // Use shared instance
+
+        // State for panel background
+        this.panelBgLayer1 = null;
+        this.panelBgLayer2 = null;
+        this.panelActiveLayer = 1;
+        this.panelCurrentBackground = null;
+
+        // State for toggle button background
+        this.btnBgLayer1 = null;
+        this.btnBgLayer2 = null;
+        this.btnActiveLayer = 1;
+        this.btnCurrentBackground = null;
     }
 
-    /**
-     * Applies the correct theme class to the panel and updates weather effects
-     * based on the latest world state data.
-     * @param {object} data - The latest world state data.
-     */
+    // Generic layer creation helper
+    _ensureBgLayers($container, layer1Prop, layer2Prop) {
+        if (!$container.length) return false;
+        if (!this[layer1Prop] || !$container.find(this[layer1Prop]).length) {
+            this[layer1Prop] = this.$('<div>').addClass('tw-bg-layer-1').css('opacity', '1').appendTo($container).get(0);
+        }
+        if (!this[layer2Prop] || !$container.find(this[layer2Prop]).length) {
+            this[layer2Prop] = this.$('<div>').addClass('tw-bg-layer-2').css('opacity', '0').appendTo($container).get(0);
+        }
+        return true;
+    }
+    
+    // Generic background update helper
+    _updateLayeredBackground(newBackground, currentBgProp, activeLayerProp, layer1Prop, layer2Prop) {
+        if (newBackground === this[currentBgProp] || !this[layer1Prop] || !this[layer2Prop]) {
+            return;
+        }
+
+        this[currentBgProp] = newBackground;
+        requestAnimationFrame(() => {
+            if (this[activeLayerProp] === 1) {
+                this[layer2Prop].style.background = newBackground;
+                this[layer1Prop].style.opacity = 0;
+                this[layer2Prop].style.opacity = 1;
+                this[activeLayerProp] = 2;
+            } else {
+                this[layer1Prop].style.background = newBackground;
+                this[layer2Prop].style.opacity = 0;
+                this[layer1Prop].style.opacity = 1;
+                this[activeLayerProp] = 1;
+            }
+        });
+    }
+
     applyThemeAndEffects(data) {
         if (!data) {
             this.logger.warn('[PanelThemeManager] applyThemeAndEffects called with no data.');
-            // Even with no data, we should ensure the button has a default state.
-            data = {}; 
+            data = {};
         }
 
         const $panel = this.$(`#${this.config.PANEL_ID}`);
         const $toggleBtn = this.$(`#${this.config.TOGGLE_BUTTON_ID}`);
-        if (!$panel.length) return;
+        if (!$panel.length && !$toggleBtn.length) return;
 
-        const period = data['时段'] || '';
-        const weather = data['天气'] || '';
-        const season = data['季节'] || (data['时间'] ? (data['时间'].match(/(春|夏|秋|冬)/) || [])[0] : null);
+        const timeString = data['时间'] || '12:00';
+        const weatherString = data['天气'] || '晴';
+        const periodString = data['时段']; 
+        const season = data['季节'] || (timeString.match(/(春|夏|秋|冬)/) || [])[0];
 
-        // --- Panel Theming ---
-        let panelTheme = 'day';
-        if (period.includes('夜')) panelTheme = 'night';
-        else if (period.includes('日落')) panelTheme = 'sunset';
-        else if (period.includes('黄昏')) panelTheme = 'dusk';
-        else if (period.includes('日出')) panelTheme = 'sunrise';
-        else if (period.includes('清晨')) panelTheme = 'dawn';
+        const theme = this.timeGradient.getThemeForTime({ timeString, weatherString, periodString });
+        const definitivePeriod = theme.period;
         
-        const isBadWeatherOnPanel = weather.includes('雨') || weather.includes('雪') || weather.includes('阴') || weather.includes('雷');
-        if (isBadWeatherOnPanel) {
-            panelTheme += '-rain';
+        // --- Panel Theming ---
+        if ($panel.length) {
+            const $panelLayersContainer = $panel.find('.tw-theme-layers');
+            if (this._ensureBgLayers($panelLayersContainer, 'panelBgLayer1', 'panelBgLayer2')) {
+                 this._updateLayeredBackground(theme.background, 'panelCurrentBackground', 'panelActiveLayer', 'panelBgLayer1', 'panelBgLayer2');
+            }
+            $panel.removeClass('theme-light-text theme-dark-text')
+                  .addClass(theme.brightness === 'light' ? 'theme-light-text' : 'theme-dark-text');
         }
         
-        $panel.attr('class', 'tw-panel').addClass(`theme-${panelTheme}`);
-
         // --- Toggle Button Theming ---
-        this.updateToggleButton(weather, period, $toggleBtn);
+        if ($toggleBtn.length) {
+            if (this._ensureBgLayers($toggleBtn, 'btnBgLayer1', 'btnBgLayer2')) {
+                this._updateLayeredBackground(theme.background, 'btnCurrentBackground', 'btnActiveLayer', 'btnBgLayer1', 'btnBgLayer2');
+            }
+            this.updateToggleButtonIcon(weatherString, definitivePeriod, $toggleBtn);
+        }
 
-        // --- Weather Effects ---
-        this.weatherSystem.updateEffects(weather, period, season, $panel, $toggleBtn);
+        // --- Weather & Glow Effects ---
+        this.weatherSystem.updateEffects(weatherString, definitivePeriod, season, $panel, $toggleBtn);
         
-        // --- Glow Effects ---
-        $panel.removeClass('glow-sunrise glow-sunset');
-        if (weather.includes('晴')) {
-            if (panelTheme.includes('sunrise') || panelTheme.includes('dawn')) $panel.addClass('glow-sunrise');
-            else if (panelTheme.includes('sunset') || panelTheme.includes('dusk')) $panel.addClass('glow-sunset');
+        if ($panel.length) {
+            $panel.removeClass('glow-sunrise glow-sunset');
+            if (weatherString.includes('晴')) {
+                if (definitivePeriod.includes('日出') || definitivePeriod.includes('清晨')) $panel.addClass('glow-sunrise');
+                else if (definitivePeriod.includes('日落') || definitivePeriod.includes('黄昏')) $panel.addClass('glow-sunset');
+            }
         }
     }
 
-    /**
-     * Updates the toggle button's appearance based on weather.
-     * @param {string} weather - The weather string.
-     * @param {string} period - The time of day string.
-     * @param {jQuery} $toggleBtn - The jQuery object for the toggle button.
-     */
-    updateToggleButton(weather, period, $toggleBtn) {
+    updateToggleButtonIcon(weather, period, $toggleBtn) {
         if (!$toggleBtn.length) return;
         
-        // Clear previous state
-        $toggleBtn.empty().attr('class', 'has-ripple').attr('id', this.config.TOGGLE_BUTTON_ID);
+        // This function now ONLY handles the icon/animation inside the button.
+        // The background is handled by the layered system.
+        
+        const currentClasses = $toggleBtn.attr('class');
+        const hasWeatherClass = currentClasses && currentClasses.includes('weather-');
 
         let weatherClass = 'default';
-        let innerHtml = '🌏'; // Default emoji
-
+        let innerHtml = '🌏';
+        
         if (weather.includes('雷')) {
             weatherClass = 'weather-thunderstorm';
-            innerHtml = `
-                <div class="cloud cloud-back"></div>
-                <div class="cloud cloud-mid"></div>
-                <div class="cloud cloud-front"></div>
-                <ul><li></li><li></li><li></li><li></li><li></li></ul>`;
+            innerHtml = `<div class="cloud cloud-back"></div><div class="cloud cloud-mid"></div><div class="cloud cloud-front"></div><ul><li></li><li></li><li></li><li></li><li></li></ul>`;
         } else if (weather.includes('雨')) {
-            if (period.includes('夜')) {
-                weatherClass = 'weather-rainy-night';
-            } else {
-                weatherClass = 'weather-rainy';
-            }
-            innerHtml = `
-                <div class="cloud cloud-back"></div>
-                <div class="cloud cloud-mid"></div>
-                <div class="cloud cloud-front"></div>
-                <ul><li></li><li></li><li></li><li></li><li></li></ul>`;
+            if (period.includes('夜')) weatherClass = 'weather-rainy-night';
+            else weatherClass = 'weather-rainy';
+            innerHtml = `<div class="cloud cloud-back"></div><div class="cloud cloud-mid"></div><div class="cloud cloud-front"></div><ul><li></li><li></li><li></li><li></li><li></li></ul>`;
         } else if (weather.includes('雪')) {
             weatherClass = 'weather-snowy';
-            innerHtml = `
-                <div class="cloud cloud-back"></div><div class="cloud cloud-mid"></div><div class="cloud cloud-front"></div>
-                <span class="snowe"></span><span class="snowex"></span>
-                <span class="stick"></span><span class="stick2"></span>
-                <ul><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ul>`;
+            innerHtml = `<div class="cloud cloud-back"></div><div class="cloud cloud-mid"></div><div class="cloud cloud-front"></div><span class="snowe"></span><span class="snowex"></span><span class="stick"></span><span class="stick2"></span><ul><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ul>`;
         } else if (weather.includes('云') || weather.includes('阴')) {
              if (period.includes('夜')) {
                 weatherClass = 'weather-night-cloudy';
@@ -129,11 +159,19 @@ export class ThemeManager {
             innerHtml = `<ul><li></li><li></li><li></li><li></li><li></li></ul>`;
         }
 
+        // Only update classes and HTML if they have changed to prevent flicker
+        if (!$toggleBtn.hasClass(weatherClass) || !hasWeatherClass) {
+            // Preserve background layers when clearing
+            const bgLayers = $toggleBtn.find('.tw-bg-layer-1, .tw-bg-layer-2').detach();
 
-        if (weatherClass === 'default') {
-            $toggleBtn.css('font-size', '20px').html(innerHtml);
-        } else {
-            $toggleBtn.css('font-size', '5px').addClass(weatherClass).html(innerHtml);
+            $toggleBtn.empty().attr('class', 'has-ripple').attr('id', this.config.TOGGLE_BUTTON_ID);
+            $toggleBtn.append(bgLayers); // Re-attach background layers
+
+            if (weatherClass === 'default') {
+                $toggleBtn.css('font-size', '20px').append(innerHtml);
+            } else {
+                $toggleBtn.css('font-size', '5px').addClass(weatherClass).append(innerHtml);
+            }
         }
     }
 }

@@ -1,98 +1,7 @@
 /**
- * The World - Time of Day Theme Styles
+ * The World - Dynamic Theme Styles
+ * This file has been refactored for the new time-based gradient system.
  */
-
-:root {
-    --rain-blur: 10px;
-    --theme-day-bg: linear-gradient(160deg, rgba(135, 206, 250, 0.7), rgba(240, 248, 255, 0.7));
-    --theme-night-bg: linear-gradient(160deg, rgba(15, 20, 28, 0.7), rgba(26, 32, 44, 0.7));
-    --theme-dusk-bg: linear-gradient(160deg, rgba(247, 183, 51, 0.7), rgba(252, 74, 26, 0.7));
-    --theme-dawn-bg: linear-gradient(160deg, rgba(92, 122, 150, 0.7), rgba(142, 172, 194, 0.7), rgba(205, 224, 240, 0.7));
-    --theme-sunrise-bg: linear-gradient(to top, rgba(243, 144, 79, 0.7), rgba(59, 67, 113, 0.7));
-    --theme-sunset-bg: linear-gradient(to bottom, rgba(13, 26, 47, 0.7), rgba(60, 62, 79, 0.7), rgba(154, 106, 79, 0.7), rgba(215, 138, 78, 0.7));
-    --theme-day-rain-bg: linear-gradient(160deg, rgba(108, 122, 137, 0.75), rgba(149, 165, 166, 0.75));
-    --theme-dusk-rain-bg: linear-gradient(160deg, rgba(75, 85, 99, 0.75), rgba(90, 80, 95, 0.75));
-    --theme-dawn-rain-bg: linear-gradient(160deg, rgba(73, 90, 105, 0.75), rgba(106, 124, 139, 0.75));
-    --theme-sunrise-rain-bg: linear-gradient(160deg, rgba(139, 126, 106, 0.75), rgba(169, 155, 134, 0.75));
-    --theme-night-rain-bg: linear-gradient(160deg, rgba(28, 33, 43, 0.75), rgba(47, 54, 68, 0.75));
-    --theme-sunset-rain-bg: linear-gradient(to bottom, rgba(36, 42, 54, 0.75), rgba(74, 74, 82, 0.75));
-    --theme-day-text-main: #1A202C;
-    --theme-day-text-secondary: #4A5568;
-    --theme-day-border: #d4e6f1;
-    --theme-day-header-bg: rgba(255, 255, 255, .3);
-    --theme-night-text-main: #e2e8f0;
-    --theme-night-text-secondary: #a0aec0;
-    --theme-night-border: #4a5568;
-    --theme-night-header-bg: rgba(0, 0, 0, .15);
-    --theme-dusk-text-main: #fff;
-    --theme-dusk-text-secondary: #ffdd99;
-    --theme-dusk-border: #c98bb5;
-    --theme-dusk-header-bg: rgba(0, 0, 0, .2);
-    --theme-dawn-text-main: #e0e8f0;
-    --theme-dawn-text-secondary: #b0c4de;
-    --theme-dawn-border: #7e98b3;
-    --theme-dawn-header-bg: rgba(0, 0, 0, .2);
-    --theme-sunrise-text-main: #f5e5d5;
-    --theme-sunrise-text-secondary: #e9b38c;
-    --theme-sunrise-border: #b36a4a;
-    --theme-sunrise-header-bg: rgba(0, 0, 0, .2);
-    --theme-sunset-text-main: #f5e5d5;
-    --theme-sunset-text-secondary: #e9b38c;
-    --theme-sunset-border: #8b5e4a;
-    --theme-sunset-header-bg: rgba(0, 0, 0, .2);
-    --theme-rain-text-main: #ecf0f1;
-    --theme-rain-text-secondary: #bdc3c7;
-    --theme-rain-border: #566573;
-    --theme-rain-header-bg: rgba(0, 0, 0, .25)
-}
-
-.tw-panel.theme-day {
-    --text-main: var(--theme-day-text-main);
-    --text-secondary: var(--theme-day-text-secondary);
-    --border-color: var(--theme-day-border);
-    --header-bg: var(--theme-day-header-bg)
-}
-.tw-panel.theme-night {
-    --text-main: var(--theme-night-text-main);
-    --text-secondary: var(--theme-night-text-secondary);
-    --border-color: var(--theme-night-border);
-    --header-bg: var(--theme-night-header-bg)
-}
-.tw-panel.theme-dusk {
-    --text-main: var(--theme-dusk-text-main);
-    --text-secondary: var(--theme-dusk-text-secondary);
-    --border-color: var(--theme-dusk-border);
-    --header-bg: var(--theme-dusk-header-bg)
-}
-.tw-panel.theme-dawn {
-    --text-main: var(--theme-dawn-text-main);
-    --text-secondary: var(--theme-dawn-text-secondary);
-    --border-color: var(--theme-dawn-border);
-    --header-bg: var(--theme-dawn-header-bg)
-}
-.tw-panel.theme-sunrise {
-    --text-main: var(--theme-sunrise-text-main);
-    --text-secondary: var(--theme-sunrise-text-secondary);
-    --border-color: var(--theme-sunrise-border);
-    --header-bg: var(--theme-sunrise-header-bg)
-}
-.tw-panel.theme-sunset {
-    --text-main: var(--theme-sunset-text-main);
-    --text-secondary: var(--theme-sunset-text-secondary);
-    --border-color: var(--theme-sunset-border);
-    --header-bg: var(--theme-sunset-header-bg)
-}
-.tw-panel.theme-day-rain,
-.tw-panel.theme-dusk-rain,
-.tw-panel.theme-night-rain,
-.tw-panel.theme-dawn-rain,
-.tw-panel.theme-sunrise-rain,
-.tw-panel.theme-sunset-rain {
-    --text-main: var(--theme-rain-text-main);
-    --text-secondary: var(--theme-rain-text-secondary);
-    --border-color: var(--theme-rain-border);
-    --header-bg: var(--theme-rain-header-bg)
-}
 
 .tw-theme-layers {
     position: absolute;
@@ -101,40 +10,33 @@
     width: 100%;
     height: 100%;
     z-index: -1;
-    transition: opacity 0.3s ease-in-out;
     border-radius: 12px;
     overflow: hidden;
 }
-.tw-theme-layer {
+
+.tw-bg-layer-1, .tw-bg-layer-2 {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     opacity: 0;
-    transition: opacity 9.0s ease-in-out;
+    transition: opacity 9s ease-in-out;
+    background-size: cover;
+    background-position: center;
 }
-.tw-theme-layer-night { background-image: var(--theme-night-bg) }
-.tw-panel.theme-night .tw-theme-layer-night { opacity: 1 }
-.tw-theme-layer-sunset { background-image: var(--theme-sunset-bg) }
-.tw-panel.theme-sunset .tw-theme-layer-sunset { opacity: 1 }
-.tw-theme-layer-dusk { background-image: var(--theme-dusk-bg) }
-.tw-panel.theme-dusk .tw-theme-layer-dusk { opacity: 1 }
-.tw-theme-layer-sunrise { background-image: var(--theme-sunrise-bg) }
-.tw-panel.theme-sunrise .tw-theme-layer-sunrise { opacity: 1 }
-.tw-theme-layer-dawn { background-image: var(--theme-dawn-bg) }
-.tw-panel.theme-dawn .tw-theme-layer-dawn { opacity: 1 }
-.tw-theme-layer-day { background-image: var(--theme-day-bg) }
-.tw-panel.theme-day .tw-theme-layer-day { opacity: 1 }
-.tw-theme-layer-night-rain { background-image: var(--theme-night-rain-bg) }
-.tw-panel.theme-night-rain .tw-theme-layer-night-rain { opacity: 1 }
-.tw-theme-layer-sunset-rain { background-image: var(--theme-sunset-rain-bg) }
-.tw-panel.theme-sunset-rain .tw-theme-layer-sunset-rain { opacity: 1 }
-.tw-theme-layer-dusk-rain { background-image: var(--theme-dusk-rain-bg) }
-.tw-panel.theme-dusk-rain .tw-theme-layer-dusk-rain { opacity: 1 }
-.tw-theme-layer-sunrise-rain { background-image: var(--theme-sunrise-rain-bg) }
-.tw-panel.theme-sunrise-rain .tw-theme-layer-sunrise-rain { opacity: 1 }
-.tw-theme-layer-dawn-rain { background-image: var(--theme-dawn-rain-bg) }
-.tw-panel.theme-dawn-rain .tw-theme-layer-dawn-rain { opacity: 1 }
-.tw-theme-layer-day-rain { background-image: var(--theme-day-rain-bg) }
-.tw-panel.theme-day-rain .tw-theme-layer-day-rain { opacity: 1 }
+
+/* New text theme classes based on background brightness */
+.tw-panel.theme-light-text {
+    --text-main: #1A202C;
+    --text-secondary: #4A5568;
+    --border-color: #d4e6f1;
+    --header-bg: rgba(255, 255, 255, .3);
+}
+
+.tw-panel.theme-dark-text {
+    --text-main: #e2e8f0;
+    --text-secondary: #a0aec0;
+    --border-color: #4a5568;
+    --header-bg: rgba(0, 0, 0, .15);
+}
