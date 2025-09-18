@@ -1,3 +1,5 @@
+
+
 /**
  * The World - Main Application Class
  * @description Orchestrates the initialization and communication of all modules.
@@ -76,8 +78,7 @@ export class TheWorldApp {
         this.dataManager.loadState();
         await this.skyThemeController.init(); 
         
-        // Replace the preloader with our time-lapse animation
-        this.replacePreloaderWithTimeLapse();
+        this.runIntroAnimation();
 
         this.uiController = new UIController({ 
             ...dependencies,
@@ -109,157 +110,159 @@ export class TheWorldApp {
         this.logger.success(`[The World v${Config.VERSION}] Initialization complete.`);
     }
 
-    replacePreloaderWithTimeLapse() {
-        const preloader = this.parentWin.document.getElementById('preloader');
-        if (!preloader) {
-            this.logger.warn('Preloader element not found. Cannot replace loading animation.');
+    runIntroAnimation() {
+        if (TheWorldState.hasLoadedBefore) {
+            this.logger.log('[世界] Not the first load, skipping intro animation.');
             return;
         }
     
-        this.logger.log('Replacing SillyTavern preloader with time-lapse animation...');
-    
-        // 1. Inject CSS for the new loader, ensuring it covers the old one
+        this.logger.log('[世界] 首次加载，创建诗歌加载动画...');
+        
+        const $overlay = this.jQuery('<div>').attr('id', 'tw-custom-loader-overlay');
+        
         const newLoaderCSS = `
-            #preloader {
+            #preloader { display: none !important; }
+            #tw-custom-loader-overlay {
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                z-index: 99999 !important; display: flex !important; flex-direction: column;
+                z-index: 999999 !important;
+                display: flex; flex-direction: column;
                 align-items: center; justify-content: center;
-                background-color: #1f2833 !important; /* Force solid background */
-                transition: opacity 0.7s ease-out;
+                background-color: #000;
+                transition: opacity 1.5s ease-out;
                 overflow: hidden;
-                opacity: 1 !important;
-            }
-            /* Explicitly hide the original spinner if present */
-            #preloader #load-spinner, #preloader > .spinner {
-                display: none !important;
             }
             .tw-loader-bg-layer {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                opacity: 0; transition: opacity 2.5s ease-in-out;
+                opacity: 0; transition: opacity 5s ease-in-out;
                 background-size: 200% 200%;
-                animation: bg-pan-loader 60s linear infinite alternate;
+                animation: bg-pan-loader 90s linear infinite alternate;
             }
             @keyframes bg-pan-loader { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
-            .tw-loader-content { z-index: 1; text-align: center; color: #fff; text-shadow: 0 1px 5px rgba(0,0,0,0.5); animation: fade-in-loader 1.5s ease-out; }
-            @keyframes fade-in-loader { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-            .tw-loader-spinner { width: 100px; height: 100px; position: relative; margin: 0 auto 30px auto; }
-            .tw-loader-spinner .orb { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, #a2fcf1 0%, #66fcf1 30%, #45a29e 100%); box-shadow: 0 0 20px #66fcf1, 0 0 40px #45a29e, inset 0 0 15px #fff; animation: orb-pulse-loader 2.5s infinite ease-in-out; }
-            @keyframes orb-pulse-loader { 50% { transform: scale(1.05); box-shadow: 0 0 30px #a2fcf1, 0 0 60px #66fcf1, inset 0 0 15px #fff; } }
-            .tw-loader-spinner .ring { position: absolute; top: 50%; left: 50%; border-radius: 50%; border-style: solid; border-color: #66fcf1 transparent transparent transparent; opacity: 0.8; }
-            .tw-loader-spinner .ring-1 { width: 120%; height: 120%; margin-top: -60%; margin-left: -60%; border-width: 2px; animation: spin-loader 2s linear infinite; }
-            .tw-loader-spinner .ring-2 { width: 140%; height: 140%; margin-top: -70%; margin-left: -70%; border-width: 1px; border-color: transparent #45a29e transparent transparent; animation: spin-loader 3.5s linear infinite reverse; }
-            @keyframes spin-loader { to { transform: rotate(360deg); } }
-            .tw-loader-text { font-size: 1.5em; letter-spacing: 2px; font-weight: 300; text-transform: uppercase; }
-            .tw-loader-subtext { margin-top: 15px; font-size: 0.9em; color: #c5c6c7; min-height: 20px; font-style: italic; transition: opacity 0.5s ease-in-out; }
-            .tw-loader-subtext.fade-out { opacity: 0; }
+            
+            .tw-loader-poetry-container {
+                position: relative; width: 80%; max-width: 700px; height: 200px; /* Give it a fixed height */
+                text-align: center; font-family: "Georgia", "Times New Roman", serif;
+                z-index: 10;
+            }
+
+            .poem-wrapper {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                opacity: 0; /* Start hidden */
+            }
+            
+            .poem-line { margin: 0.2em 0; line-height: 1.7; text-shadow: 0 1px 4px rgba(0,0,0,0.7); }
+            .poem-original { font-size: 1.2em; color: rgba(255, 255, 255, 0.95); font-weight: 400; }
+            .poem-translation { font-size: 1em; color: rgba(255, 255, 255, 0.65); font-style: italic; }
+            
+            .poem-attribution {
+                width: 100%;
+                text-align: right;
+                margin-top: 2em;
+                padding-right: 1em;
+                font-size: 0.8em; color: rgba(255, 255, 255, 0.5);
+                z-index: 10;
+            }
+
+            @keyframes fade-in-out-poem {
+                0% { opacity: 0; transform: translateY(10px); }
+                15% { opacity: 1; transform: translateY(0); }
+                85% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-10px); }
+            }
         `;
         this.injectionEngine.injectCss('the-world-loader-style', newLoaderCSS);
     
-        // 2. Inject HTML Structure
-        preloader.innerHTML = `
+        const poems = [
+            { // 0 - 7.5s: Night
+                html: `<p class="poem-line poem-original">La noche está estrellada,</p><p class="poem-line poem-translation">夜在天空中布满星辰，</p><p class="poem-line poem-original">y tiritan, azules, los astros, a lo lejos.</p><p class="poem-line poem-translation">蓝色的星群，在远方颤抖。</p>`,
+                attribution: '— 巴勃罗·聂鲁达 《二十首情诗和一首绝望的歌》',
+            },
+            { // 7.5s - 15s: Sunrise
+                html: `<p class="poem-line poem-original">The sky filled slowly with shades of violet and rose,</p><p class="poem-line poem-translation">天空缓缓充满了紫罗兰与玫瑰的色调，</p><p class="poem-line poem-original">and the hills were purple.</p><p class="poem-line poem-translation">远山呈现一片黛紫。</p>`,
+                attribution: '— 弗吉尼亚·伍尔夫 《到灯塔去》(To the Lighthouse)',
+            },
+            { // 15s - 22.5s: Daytime
+                html: `<p class="poem-line poem-original">Higher still and higher</p><p class="poem-line poem-translation">飞得更高，更高，</p><p class="poem-line poem-original">Like a cloud of fire;</p><p class="poem-line poem-translation">像一团燃烧的火云；</p><p class="poem-line poem-original">The blue deep thou wingest...</p><p class="poem-line poem-translation">你鼓翼穿行于蔚蓝的深空...</p>`,
+                attribution: '— 雪莱 《致云雀》(To a Skylark)',
+            },
+            { // 22.5s - 30s: Dusk
+                html: `<p class="poem-line poem-original">La tarde que se inclina sobre el mundo</p><p class="poem-line poem-translation">这黄昏斜倚向世界</p><p class="poem-line poem-original">es de una luz que es casi una memoria;</p><p class="poem-line poem-translation">它的光几乎就是一种记忆；</p>`,
+                attribution: '— 豪尔赫·路易斯·博尔赫斯 《黄昏》 (Un Atardecer)',
+            }
+        ];
+        
+        let poetryHtml = '';
+        poems.forEach((p, i) => {
+            poetryHtml += `
+                <div class="poem-wrapper" id="poem-${i}" style="animation: fade-in-out-poem 7.5s ease-in-out forwards; animation-delay: ${i * 7.5}s;">
+                    <div>${p.html}</div>
+                    <div class="poem-attribution">${p.attribution}</div>
+                </div>`;
+        });
+
+        $overlay.html(`
             <div class="tw-loader-bg-layer" id="tw-loader-bg1"></div>
             <div class="tw-loader-bg-layer" id="tw-loader-bg2"></div>
-            <div class="tw-loader-content">
-                <div class="tw-loader-spinner"><div class="orb"></div><div class="ring ring-1"></div><div class="ring ring-2"></div></div>
-                <h2 class="tw-loader-text">THE WORLD</h2>
-                <p class="tw-loader-subtext">Assembling Reality...</p>
-            </div>
-        `;
-    
-        // 3. Start Animation
+            <div class="tw-loader-poetry-container">${poetryHtml}</div>
+        `);
+        this.jQuery('body').prepend($overlay);
+
         const bg1 = this.parentWin.document.getElementById('tw-loader-bg1');
         const bg2 = this.parentWin.document.getElementById('tw-loader-bg2');
-        const subtextEl = this.parentWin.document.querySelector('.tw-loader-subtext');
-        
-        let activeLayer = 1;
-        let lastUpdateTime = 0;
-        const updateInterval = 500;
-    
-        let animState = { frameId: null, startTime: null, duration: 12000 };
-        const loadingTexts = [ 'Assembling Reality...', 'Calibrating Atmosphere...', 'Rendering Celestial Bodies...', 'Generating Terrain...', 'Waking Inhabitants...' ];
-        let textIndex = 0;
-        let textTimeout;
-    
-        const changeSubtext = () => {
-            if (!subtextEl) return;
-            subtextEl.classList.add('fade-out');
-            setTimeout(() => {
-                textIndex = (textIndex + 1) % loadingTexts.length;
-                subtextEl.textContent = loadingTexts[textIndex];
-                subtextEl.classList.remove('fade-out');
-                textTimeout = setTimeout(changeSubtext, 2500);
-            }, 500);
-        };
-        textTimeout = setTimeout(changeSubtext, 2000);
-    
-        const animate = (timestamp) => {
-            if (!animState.frameId) return; // Stop if cancelled
+        const animState = { frameId: null, startTime: null, duration: 30000, activeBgLayer: 1 };
+
+        const animateBg = (timestamp) => {
+            if (animState.frameId === null) return;
             if (!animState.startTime) animState.startTime = timestamp;
             const elapsed = timestamp - animState.startTime;
-    
-            if (timestamp - lastUpdateTime > updateInterval) {
-                lastUpdateTime = timestamp;
-                const progress = (elapsed % animState.duration) / animState.duration;
-                const simulatedHour = progress * 24;
-    
-                const theme = this.timeGradient.getThemeForTime({ timeString: `${Math.floor(simulatedHour)}:${String(Math.floor((simulatedHour % 1) * 60)).padStart(2, '0')}` });
-    
-                if (activeLayer === 1) {
+            const progress = Math.min(elapsed / animState.duration, 1);
+            const simulatedHour = progress * 24;
+            const theme = this.timeGradient.getThemeForTime({ timeString: `${Math.floor(simulatedHour)}:${String(Math.floor((simulatedHour % 1) * 60)).padStart(2, '0')}` });
+
+            if (animState.activeBgLayer === 1) {
+                if (bg2.style.background !== theme.background) {
                     bg2.style.background = theme.background;
-                    bg1.style.opacity = 0;
-                    bg2.style.opacity = 1;
-                    activeLayer = 2;
-                } else {
+                    bg1.style.opacity = 0; bg2.style.opacity = 1; animState.activeBgLayer = 2;
+                }
+            } else {
+                if (bg1.style.background !== theme.background) {
                     bg1.style.background = theme.background;
-                    bg2.style.opacity = 0;
-                    bg1.style.opacity = 1;
-                    activeLayer = 1;
+                    bg2.style.opacity = 0; bg1.style.opacity = 1; animState.activeBgLayer = 1;
                 }
             }
-            animState.frameId = requestAnimationFrame(animate);
+
+            if(elapsed < animState.duration) {
+                animState.frameId = requestAnimationFrame(animateBg);
+            }
         };
-        animState.frameId = requestAnimationFrame(animate);
-    
-        // 4. Setup cleanup logic based on first load
+
         const cleanup = () => {
-            if (animState.frameId === null) return; // Already cleaned up
-            this.logger.success('Cleanup trigger received. Stopping loading animation.');
-            
+            this.logger.success('[世界] 加载动画结束，正在清理。');
             cancelAnimationFrame(animState.frameId);
             animState.frameId = null;
-            clearTimeout(textTimeout);
-            
-            if (preloader) {
-                preloader.style.opacity = '0';
-                setTimeout(() => {
-                    preloader.remove();
-                    this.injectionEngine.removeCss('the-world-loader-style');
-                }, 700);
-            }
+            $overlay.css('opacity', '0');
+            setTimeout(() => {
+                $overlay.remove();
+                this.injectionEngine.removeCss('the-world-loader-style');
+                this.logger.log('[世界] 设置 hasLoadedBefore 为 true 并保存。');
+                TheWorldState.hasLoadedBefore = true;
+                this.dataManager.saveState();
+            }, 1500); // Wait for fade-out transition
         };
-    
-        let isAppReady = false;
-        const appReadyListener = () => {
-            this.logger.success('APP_READY event received.');
-            isAppReady = true;
-            if (TheWorldState.hasLoadedBefore) {
-                cleanup();
-            }
-        };
-        this.SillyTavernContext.eventSource.once(this.SillyTavernContext.eventTypes.APP_READY, appReadyListener);
-    
-        if (!TheWorldState.hasLoadedBefore) {
-            this.logger.log('First load detected. Running full 12-second animation.');
-            TheWorldState.hasLoadedBefore = true;
-            this.dataManager.saveState();
-            setTimeout(cleanup, 12000);
-        } else {
-            this.logger.log('Subsequent load. Animation will end when app is ready.');
-            if (isAppReady) {
-                 cleanup();
-            }
-        }
+        
+        // Main cleanup timer
+        setTimeout(cleanup, 30000); 
+
+        // Animate Background
+        const initialTheme = this.timeGradient.getThemeForTime({ timeString: '0:00' });
+        bg1.style.background = initialTheme.background;
+        bg1.style.opacity = 1;
+        animState.frameId = requestAnimationFrame(animateBg);
     }
+
 
     debouncedProcessor(msgId, isReprocessing = false) {
         clearTimeout(this.processorTimeout);

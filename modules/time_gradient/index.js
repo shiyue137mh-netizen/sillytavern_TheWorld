@@ -1,7 +1,9 @@
+
+
 /**
  * The World - Dynamic Time Gradient Color Engine
  * @description A utility to calculate sky gradients based on time of day.
- * V3: Refactored to use a centralized period determination logic for better consistency.
+ * V4: Refactored interpolation logic to be more robust and handle time wrapping correctly.
  */
 export class TimeGradient {
     constructor() {
@@ -11,7 +13,8 @@ export class TimeGradient {
 
     loadTheme(themeData) {
         if (themeData && Array.isArray(themeData.gradients) && themeData.gradients.length > 0) {
-            this.skyGradients = themeData.gradients;
+            // Sort by hour to ensure correct interpolation
+            this.skyGradients = themeData.gradients.sort((a, b) => a.hour - b.hour);
             this.periodOverrides = themeData.periodOverrides || {};
         } else {
             console.error("[TimeGradient] Invalid or empty theme loaded.");
@@ -69,13 +72,6 @@ export class TimeGradient {
         return '白天';
     }
     
-    /**
-     * Determines the definitive time period based on a two-layer check.
-     * Priority 1: Use the explicit '时段' (periodString) if available.
-     * Priority 2: Infer the period from the '时间' (timeString) if the period is not provided.
-     * @param {{timeString: string, periodString: string}} params - The time and period strings from the world state.
-     * @returns {string} The determined time period (e.g., '夜晚', '清晨').
-     */
     determineDefinitivePeriod({ timeString, periodString }) {
         if (periodString && periodString.trim() !== '') {
             return periodString.trim();
@@ -106,23 +102,46 @@ export class TimeGradient {
         }
 
         let colorDecimalHour = this._parseTimeToDecimal(timeString || '12:00');
-        if (colorDecimalHour === 24) colorDecimalHour = 0;
+        if (colorDecimalHour >= 24) colorDecimalHour %= 24;
 
         let start, end;
-        for (let i = 0; i < this.skyGradients.length - 1; i++) {
-            if (colorDecimalHour >= this.skyGradients[i].hour && colorDecimalHour < this.skyGradients[i + 1].hour) {
+
+        // Find the last stop that is less than or equal to the current time.
+        // This loop works by finding the correct "floor" interval.
+        let found = false;
+        for (let i = this.skyGradients.length - 1; i >= 0; i--) {
+            if (this.skyGradients[i].hour <= colorDecimalHour) {
                 start = this.skyGradients[i];
-                end = this.skyGradients[i + 1];
+                // The end is the next one, or wrap around to the first one if we're at the last stop.
+                end = this.skyGradients[i + 1] || this.skyGradients[0];
+                found = true;
                 break;
             }
         }
-        
-        if (!start || !end) {
-            start = this.skyGradients[this.skyGradients.length - 2] || this.skyGradients[0];
-            end = this.skyGradients[this.skyGradients.length - 1] || this.skyGradients[0];
+
+        // If no start was found, it means the time is before the very first stop (e.g., time is 01:00, first stop is 04:00).
+        // In this case, we're between the last stop of the previous day and the first stop of this day.
+        if (!found) {
+            start = this.skyGradients[this.skyGradients.length - 1]; // Last stop of the day
+            end = this.skyGradients[0]; // First stop of the day
         }
 
-        const factor = (end.hour - start.hour > 0) ? (colorDecimalHour - start.hour) / (end.hour - start.hour) : 0;
+        let startHour = start.hour;
+        let endHour = end.hour;
+        let currentTime = colorDecimalHour;
+
+        // Handle the wrap-around case for interpolation (e.g., from 19:00 to 04:00)
+        if (endHour < startHour) { 
+            endHour += 24;
+            // If current time is also on the "next day" side of the wrap, adjust it as well.
+            if (currentTime < startHour) {
+                currentTime += 24;
+            }
+        }
+        
+        // Ensure no division by zero if hours are identical.
+        const factor = (endHour - startHour > 0) ? (currentTime - startHour) / (endHour - startHour) : 0;
+        
         const grad_start = this._interpolateColor(start.colors[0], end.colors[0], factor);
         const grad_end = this._interpolateColor(start.colors[1], end.colors[1], factor);
         const baseGradient = `linear-gradient(160deg, ${grad_start}, ${grad_end})`;
