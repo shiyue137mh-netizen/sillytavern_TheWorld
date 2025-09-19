@@ -36,56 +36,50 @@ THE world
 **总结**: 这套双模式架构将选择权交给了用户。默认情况下，它是一个美观且无害的“动态壁纸”，而在需要时，又能化身为一个能提供深度沉浸体验的强大工具。
 
 3. 扩展文件结构 (模仿 sillypoker 的模块化思想)
-我们将在 SillyTavern/public/scripts/extensions/ 目录下创建 dynamic_theme_engine 文件夹：
+我们将在 SillyTavern/public/scripts/extensions/ 目录下创建 the_world 文件夹：
 
-📁 dynamic_theme_engine/
+📁 the_world/
 │
 ├── 📜 manifest.json              # 扩展声明文件
-├── 📜 index.js                  # 扩展主入口，初始化所有核心模块
+├── 📜 script.js                  # 扩展主入口，初始化所有核心模块
+│
+├── 📁 assets/                    # 存放所有静态资源
+│   └── 📁 audio/                 # - 存放所有音频文件 (环境音/音效)
 │
 ├── 📁 core/                      # 引擎核心，处理底层逻辑
-│   ├── 📜 themeManager.js       # [大脑] 主题管理器：负责加载、卸载、切换主题，监听角色切换事件
-│   ├── 📜 injectionEngine.js    # [双手] 注入引擎：负责向主页面动态添加/移除 CSS, HTML, JS
-│   ├── 📜 dataManager.js        # [记忆] 数据管理器：负责读写扩展设置和已安装的主题列表
-│   └── 📜 eventBus.js           # [神经] 事件总线：用于各模块间和主题内的通信，解耦代码
+│   ├── 📜 DataManager.js         # [记忆] 数据管理器：负责读写扩展设置
+│   ├── 📜 InjectionEngine.js    # [双手] 注入引擎：负责向主页面动态添加/移除 CSS
+│   ├── 📜 ThemeManager.js       # [面板主题] 负责面板和按钮的主题与特效
+│   ├── 📜 GlobalThemeManager.js # [全局主题] 负责全局背景的主题与特效
+│   ├── 📜 CommandParser.js      # [指令解析] 从AI消息中解析函数式指令
+│   └── 📜 CommandProcessor.js   # [指令执行] 执行解析后的指令
 │
-├── 📁 modules/                   # 可复用的功能模块 (每个主题都可以调用它们)
-│   ├── 📁 time_gradient/         # 模块：时间渐变背景
-│   │   ├── 📜 index.js          # - 实现根据现实时间计算颜色渐变的逻辑
-│   │   └── 📜 style.css         # - 提供平滑的背景过渡效果
+├── 📁 docs/                      # 存放给AI的开发与指令指南
+│   └── 📜 audio_guide.md        # - 音频指令指南
+│
+├── 📁 modules/                   # 可复用的功能模块
+│   ├── 📁 audio/                 # 模块：音频管理器
+│   │   └── 📜 index.js          # - 实现双通道、非持久化的音景系统
 │   │
-│   ├── 📁 weather_system/        # 模块：全局天气系统 (结构细化)
-│   │   ├── 📜 index.js          # - 天气主控制器，根据请求加载并管理相应的特效渲染器
-│   │   ├── 📜 style.css         # - 用于特效容器（如canvas）的通用样式
-│   │   │
+│   ├── 📁 time_gradient/         # 模块：时间渐变背景
+│   │   └── 📜 index.js          # - 实现根据时间计算颜色渐变的逻辑
+│   │
+│   ├── 📁 weather_system/        # 模块：全局天气系统
+│   │   ├── 📜 index.js          # - 天气主控制器，管理天气特效
 │   │   └── 📁 effects/          # - 存放所有具体的天气特效实现
-│   │       ├── 📁 simple/         #   - [简单特效] 纯CSS或少量JS实现的特效
-│   │       │   └── 📁 rain/
-│   │       │       ├── 📜 index.js
-│   │       │       └── 📜 style.css
-│   │       │
-│   │       └── 📁 complex/        #   - [复杂特效] 需要复杂JS逻辑或WebGL等技术的特效
-│   │           └── 📁 sakura_webgl/
-│   │               ├── 📜 index.js        # - 主逻辑，负责创建canvas和初始化渲染器
-│   │               ├── 📜 renderer.js     # - 核心的WebGL渲染逻辑
-│   │               └── 📜 shaders.glsl    # - GLSL着色器代码
 │   │
 │   └── 📁 state_parser/          # 模块：AI消息解析器
 │       └── 📜 index.js          # - 负责从AI消息中解析 <WorldState> 等自定义标签
 │
-├── 📁 themes/                    # 存放用户安装的“动态主题包”
-│   └── 📁 default/               # - 示例：一个默认的空白或基础主题
-│       ├── 📜 theme.json        #   - 主题的清单文件（配置信息）
-│       ├── 📜 style.css         #   - 主题的全局CSS
-│       ├── 📜 script.js         #   - 主题的全局JS
-│       └── 📁 assets/           #   - 主题自身的资源（如特定背景图、字体文件）
+├── 📁 themes/                    # 存放可配置的主题文件 (JSON)
+│   ├── 📁 sky/                   # - 天色主题
+│   └── 📁 clouds/                # - 云朵主题
 │
 └── 📁 ui/                        # 扩展自身的设置界面
-    ├── 📜 controller.js         # - 设置面板的交互逻辑
-    ├── 📜 style.css             # - 设置面板的样式
-    └── 📁 templates/            # - 设置面板的HTML模板文件
-        ├── 📜 settings.html     #   - 主面板HTML
-        └── 📜 theme-item.html   #   - 主题列表中单个条目的HTML
+    ├── 📜 UIController.js       # - 设置面板的总控制器
+    ├── 📜 UIRenderer.js         # - 负责渲染各个UI面板
+    ├── 📜 UIEventManager.js     # - 负责绑定所有UI事件
+    └── 📜 UIPanelManager.js     # - 负责面板的拖动、缩放等物理交互
 
 4. 数据结构定义
 4.1. 主题包: theme.json
@@ -161,19 +155,7 @@ THE world
    - 当用户关闭“动态背景”开关，`timeGradient.deactivate()`被调用。
    - 它会移除注入的CSS样式块和两个背景`div`层，使页面完全恢复到SillyTavern的原生外观。
 
-6. 未来构想与路线图
-这是一个用于记录和规划未来功能的区域，基于用户的反馈和项目的潜力。
-
-- **一键仰望/俯瞰视角**:
-  - **构想**: 在UI中增加一个“视角切换”按钮。点击后，触发一个全屏的、更具电影感的视觉特效。
-  - **仰望模式**: 整个屏幕将被一个宏大的天空景象所取代，例如：
-    - **白天**: 广阔的、飘着云朵的蓝天。
-    - **夜晚**: 璀璨的星空、银河，或是流星雨。
-    - **特殊天气**: 乌云密布的雷暴天，或是漫天飞舞的樱花。
-  - **俯瞰模式**: 可以展示一个动态的地面景象，如波光粼粼的水面、繁华的城市夜景等。
-  - **技术实现**: 这将涉及到暂时隐藏大部分原生UI，并将一个高`z-index`的`canvas`或`div`特效层扩展到全屏，播放预设的复杂动画。这为实现更具冲击力的视觉效果提供了可能性。
-
-7. 面向创作者的API
+6. 面向创作者的API
 为了方便主题开发者，script.js将可以访问一个全局对象，例如DTE (Dynamic Theme Engine)，提供一些便捷的工具函数和事件接口：
 
 // 示例：在主题的 script.js 中使用

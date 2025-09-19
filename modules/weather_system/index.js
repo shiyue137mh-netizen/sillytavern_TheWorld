@@ -15,12 +15,11 @@ export class WeatherSystem {
         this.config = config;
         this.logger = logger;
 
-        const effectDependencies = { $, state, config, logger, injectionEngine, timeGradient };
-        this.dependencies = effectDependencies;
+        this.dependencies = { $, state, config, logger, injectionEngine, timeGradient };
         
         this.sakuraInstance = null;
         this.rainyDayInstance = null;
-        this.clouds3dInstance = new Clouds3dFX(effectDependencies);
+        this.clouds3dInstance = new Clouds3dFX({ $, config, logger, state });
         this.vaporTrailInstance = null;
         this.fireworksInstance = null;
         this.lightningLoopTimeout = null;
@@ -31,6 +30,7 @@ export class WeatherSystem {
             particleClass: ''
         };
     }
+
 
     updateEffects(weatherString, periodString, seasonString, $panel, $toggleBtn) {
         const safeWeatherString = weatherString || '';
@@ -143,18 +143,18 @@ export class WeatherSystem {
         }
         
         if (this.state.weatherFxEnabled) {
-            if (isGoodWeather && !$fgFxTarget.children('.tw-bird-container').length) {
+            if (isGoodWeather && !$bgFxTarget.children('.tw-bird-container').length) {
                 if (Math.random() < 0.02) { 
                     this.logger.log('[天气系统] 正在触发飞鸟特效...');
-                    this._createBirdAnimation($fgFxTarget);
+                    this._createBirdAnimation($bgFxTarget);
                 }
             }
-            if (isClearSky && !this.vaporTrailInstance) {
+            if (!isNight && isClearSky && !this.vaporTrailInstance) {
                 if (Math.random() < 0.025) { 
                     this.logger.log('[天气系统] 正在触发飞机尾迹云特效...');
                     this.vaporTrailInstance = new VaporTrailFX({
                         ...this.dependencies,
-                        $fxTarget: $fgFxTarget,
+                        $fxTarget: $bgFxTarget,
                         onComplete: () => { this.vaporTrailInstance = null; }
                     });
                     this.vaporTrailInstance.init();

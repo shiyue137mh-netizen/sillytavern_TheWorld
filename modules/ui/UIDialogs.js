@@ -3,13 +3,14 @@
  * @description Manages all popup dialogs.
  */
 export class UIDialogs {
-    constructor({ $, state, win, logger, config, triggerSlash }) {
+    constructor({ $, state, win, logger, config, triggerSlash, timeGradient }) {
         this.$ = $;
         this.state = state;
         this.win = win;
         this.logger = logger;
         this.config = config;
         this.triggerSlash = triggerSlash;
+        this.timeGradient = timeGradient; // <-- 注入依赖
     }
 
     showKeywordInteractDialog(keyword) {
@@ -453,11 +454,21 @@ export class UIDialogs {
     }
 
     createDialog(title, content, buttons) {
-        const panelClass = this.$(`#${this.config.PANEL_ID}`).attr('class') || '';
-        const themeClassMatch = panelClass.match(/theme-(light|dark)-text/);
-        const themeClass = themeClassMatch ? themeClassMatch[0] : 'theme-dark-text';
+        // 从timeGradient服务获取当前一致的主题
+        const data = this.state.latestWorldStateData || {};
+        const theme = this.timeGradient.getThemeForTime({
+            timeString: data['时间'] || '12:00',
+            weatherString: data['天气'] || '晴',
+            periodString: data['时段']
+        });
+        const themeClass = theme.brightness === 'light' ? 'theme-light-text' : 'theme-dark-text';
 
+        // 创建dialog并应用正确的class
         const dialog = this.$(`<div class="ws-dialog-overlay ${themeClass}"><div class="ws-dialog"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
+        
+        // 将动态背景也应用到dialog上
+        dialog.find('.ws-dialog').css('background', theme.background);
+
         dialog.find(".dialog-content").append(content);
         dialog.find(".dialog-buttons-wrapper").append(buttons);
         this.$("body").append(dialog);

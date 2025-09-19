@@ -225,7 +225,7 @@ export class UIRenderer {
         $pane.append($themeSection);
         $pane.append('<hr class="ws-separator">');
 
-        // 2. Toggles and Buttons Section (unchanged logic, just appending)
+        // 2. Toggles and Buttons Section
         const otherSettingsContent = `
             <div class="settings-item">
                 <div class="settings-item-text">
@@ -245,6 +245,35 @@ export class UIRenderer {
                 <div class="toggle-switch">
                     <input type="checkbox" id="immersive-mode-toggle" ${this.state.isImmersiveModeEnabled ? 'checked' : ''} ${!this.state.isGlobalThemeEngineEnabled ? 'disabled' : ''}>
                     <label for="immersive-mode-toggle"></label>
+                </div>
+            </div>
+            <hr class="ws-separator">
+            <div class="settings-item">
+                <div class="settings-item-text">
+                    <h4>开启音频</h4>
+                    <p>启用或禁用所有环境音和音效。</p>
+                </div>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="audio-enabled-toggle" ${this.state.isAudioEnabled ? 'checked' : ''}>
+                    <label for="audio-enabled-toggle"></label>
+                </div>
+            </div>
+            <div class="settings-item">
+                 <div class="settings-item-text">
+                    <h4>环境音音量</h4>
+                </div>
+                <div class="slider-container" style="width: 150px;">
+                    <input type="range" id="ambient-volume-slider" min="0" max="1" step="0.05" value="${this.state.ambientVolume}">
+                    <span id="ambient-volume-value" class="slider-value">${Math.round(this.state.ambientVolume * 100)}%</span>
+                </div>
+            </div>
+            <div class="settings-item">
+                 <div class="settings-item-text">
+                    <h4>音效音量</h4>
+                </div>
+                 <div class="slider-container" style="width: 150px;">
+                    <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.05" value="${this.state.sfxVolume}">
+                    <span id="sfx-volume-value" class="slider-value">${Math.round(this.state.sfxVolume * 100)}%</span>
                 </div>
             </div>
             <hr class="ws-separator">

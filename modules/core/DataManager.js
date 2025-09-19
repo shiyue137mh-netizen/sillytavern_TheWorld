@@ -52,6 +52,9 @@ export class DataManager {
         assignSetting('panelTop', this.state.panelTop);
         assignSetting('panelLeft', this.state.panelLeft);
         assignSetting('hasLoadedBefore', this.state.hasLoadedBefore);
+        assignSetting('isAudioEnabled', this.state.isAudioEnabled);
+        assignSetting('ambientVolume', this.state.ambientVolume);
+        assignSetting('sfxVolume', this.state.sfxVolume);
     }
 
     saveState() {
@@ -75,6 +78,9 @@ export class DataManager {
             panelTop: this.state.panelTop,
             panelLeft: this.state.panelLeft,
             hasLoadedBefore: this.state.hasLoadedBefore,
+            isAudioEnabled: this.state.isAudioEnabled,
+            ambientVolume: this.state.ambientVolume,
+            sfxVolume: this.state.sfxVolume,
         };
         this.logger.log('正在保存的设置:', settings);
         this._storage('save', this.config.STORAGE_KEYS.SETTINGS, settings);

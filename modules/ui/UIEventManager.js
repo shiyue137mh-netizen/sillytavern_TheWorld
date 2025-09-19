@@ -8,6 +8,7 @@ export class UIEventManager {
         Object.assign(this, dependencies);
         this.longPressTimer = null;
         this.pressStartTime = 0;
+        this.isAudioUnlocked = false;
     }
 
     toggleSkygazingMode() {
@@ -48,6 +49,7 @@ export class UIEventManager {
     }
 
     bindAllEvents() {
+        this.bindWindowEvents();
         this.logger.log('正在绑定所有UI事件...');
         const $body = this.$('body');
         const $panel = this.$(`#${this.config.PANEL_ID}`);
@@ -67,6 +69,10 @@ export class UIEventManager {
         $toggleBtn
             .off('.tw_toggle') // Remove all previous tw_toggle namespaced events
             .on('mousedown.tw_toggle touchstart.tw_toggle', (e) => {
+                if (!this.isAudioUnlocked) {
+                    this.audioManager.unlockAudio();
+                    this.isAudioUnlocked = true;
+                }
                 if (e.type === 'mousedown' && e.which !== 1) return; // Ignore non-left clicks
 
                 this.pressStartTime = Date.now();
@@ -89,7 +95,6 @@ export class UIEventManager {
                 clearLongPress();
                 
                 if (pressDuration < 500) { // Click threshold
-                     e.stopPropagation();
                      this.panelManager.togglePanel();
                 }
             })
@@ -98,7 +103,7 @@ export class UIEventManager {
                 clearLongPress();
             });
         
-        // this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true); // REMOVED as per user request
+        this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true);
 
         // Panel Interactions
         this.panelManager.makeDraggable($panel, $panel.find(`.${this.config.HEADER_CLASS}`));
@@ -172,7 +177,8 @@ export class UIEventManager {
                 'fx-global-toggle': 'isFxGlobal',
                 'raindrop-fx-toggle': 'isRaindropFxOn',
                 'weather-fx-toggle': 'weatherFxEnabled',
-                'cloud-fx-toggle': 'isCloudFxEnabled'
+                'cloud-fx-toggle': 'isCloudFxEnabled',
+                'audio-enabled-toggle': 'isAudioEnabled'
             };
             const key = keyMap[e.target.id];
             if (key) {
@@ -196,11 +202,34 @@ export class UIEventManager {
                     }
                 }
 
+                if (key === 'isAudioEnabled') {
+                    this.audioManager.setMasterEnabled(e.target.checked);
+                }
+
                 // Update panel specific effects
                 this.panelThemeManager.applyThemeAndEffects(this.state.latestWorldStateData);
             }
         });
         
+        $panel.on('input.tw_settings', '#settings-pane input[type="range"]', (e) => {
+            const value = parseFloat(e.target.value);
+            const id = e.target.id;
+        
+            if (id === 'ambient-volume-slider') {
+                this.state.ambientVolume = value;
+                this.audioManager.setAmbientVolume(value);
+                this.$('#ambient-volume-value').text(`${Math.round(value * 100)}%`);
+            } else if (id === 'sfx-volume-slider') {
+                this.state.sfxVolume = value;
+                this.audioManager.setSfxVolume(value);
+                this.$('#sfx-volume-value').text(`${Math.round(value * 100)}%`);
+            }
+        });
+
+        $panel.on('change.tw_settings', '#settings-pane input[type="range"]', () => {
+            this.dataManager.saveState();
+        });
+
         $panel.on('click.tw_settings', '#clear-all-data-btn', () => {
             if (confirm('确定要清空所有存储的数据吗？\n此操作无法撤销！')) {
                 this.dataManager.clearAllStorage();
@@ -233,6 +262,14 @@ export class UIEventManager {
             $ripple.css({ width: size + 'px', height: size + 'px', top: y + 'px', left: x + 'px' });
             $this.append($ripple);
             setTimeout(() => { $ripple.remove(); }, 600);
+        });
+    }
+    bindWindowEvents() {
+        // Use debounce to prevent excessive calls on resize
+        let resizeTimeout;
+        this.win.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => this.ui.handleResize(), 150);
         });
     }
 }

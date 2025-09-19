@@ -101,7 +101,6 @@
     width: 100%;
     height: 100%;
     z-index: 5;
-    animation: flash 6s linear infinite 1s;
 }
 
 .sakura-canvas {
@@ -159,6 +158,16 @@
     height: 10px;
     will-change: transform, opacity; /* Performance Optimization */
     animation: nebula-drift 120s infinite linear alternate;
+}
+
+/* NEW: Synchronized lightning flash effect */
+@keyframes flash-oneshot {
+    0% { background: rgba(255, 255, 255, 0.8); }
+    100% { background: transparent; }
+}
+#the_world-fx-layer.lightning-flash,
+#the_world-panel .tw-fx-container-local.lightning-flash {
+    animation: flash-oneshot 0.5s ease-out;
 }
 
 

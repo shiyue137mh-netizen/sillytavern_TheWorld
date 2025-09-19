@@ -5,5 +5,8 @@
   "description": "A dynamic theme engine that provides an immersive world dashboard with themes and weather effects.",
   "js": "script.js",
   "css": "style.css",
-  "html": "panel.html"
+  "html": "panel.html",
+  "assets": [
+    "assets/audio/"
+  ]
 }

@@ -15,6 +15,8 @@ export const TheWorldState = {
     panelHeight: null, 
     panelTop: 60,
     panelLeft: null,
+    buttonTop: 10,
+    buttonLeft: null,
 
     // --- Settings State ---
     activeSkyThemeId: 'default', // NEW: To store the selected sky theme
@@ -27,5 +29,10 @@ export const TheWorldState = {
     locationFxEnabled: true,
     celestialFxEnabled: true,
     isSkygazingModeActive: false,
-    hasLoadedBefore: false
+    hasLoadedBefore: false,
+
+    // --- Audio Settings ---
+    isAudioEnabled: true,
+    ambientVolume: 0.5,
+    sfxVolume: 0.8,
 };

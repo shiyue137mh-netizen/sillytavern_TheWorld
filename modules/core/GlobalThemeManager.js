@@ -23,7 +23,8 @@ export class GlobalThemeManager {
         if (this.isActive) return;
         this.isActive = true;
         this.logger.success('全局主题引擎已激活！');
-        this.updateTheme();
+        // Defer the first update slightly to ensure body class is set
+        setTimeout(() => this.updateTheme(), 50);
     }
 
     deactivate() {
@@ -36,6 +37,15 @@ export class GlobalThemeManager {
 
     updateTheme() {
         if (!this.isActive) return;
+
+        // NEW: Check for mobile view and deactivate if necessary
+        if (this.$('body').hasClass('tw-is-mobile-view')) {
+            this.logger.log('[全局主题] 检测到移动端视图，暂时禁用背景。');
+            this._removeBgLayers();
+            this.injectionEngine.removeCss(this.config.GLOBAL_THEME_STYLE_ID);
+            return;
+        }
+
         this.logger.log('正在更新全局主题...');
         
         const data = this.state.latestWorldStateData || {};

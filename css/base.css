@@ -161,7 +161,7 @@
     flex-grow: 1;
     position: relative;
     z-index: 1;
-    overflow: hidden;
+    /* overflow: hidden; */ /* This was preventing pane scrolling on mobile */
 }
 .tw-pane {
     position: absolute;
@@ -171,6 +171,7 @@
     bottom: 0;
     padding: 15px;
     overflow-y: auto;
+    touch-action: pan-y; /* Allow vertical scrolling on touch devices */
     opacity: 0;
     transform: translateY(10px);
     transition: opacity .3s ease-in-out, transform .3s ease-in-out;
@@ -524,8 +525,9 @@
     background: rgba(0, 0, 0, .7);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Align to top on mobile */
     justify-content: center;
+    padding-top: 5vh; /* Add some space from the top */
     z-index: 10001;
     animation: fadeIn .3s ease-in-out
 }
@@ -709,7 +711,7 @@
         right: 10px !important;
     }
     .tw-panel:not(.minimized) {
-        display: flex !important;
+        /* display: flex !important; */ /* This was overriding the hide() functionality */
     }
     .tw-tab-link {
         font-size: 13px;
@@ -1183,4 +1185,16 @@ input[type=number] {
 .tw-weather-scroller-column.disabled .tw-weather-scroller-item {
     opacity: 0.2;
     cursor: default;
+}
+
+/* Mobile-specific adjustments */
+.tw-is-mobile-view #the_world-toggle-btn {
+    top: auto;
+    bottom: 15px;
+    right: 15px;
+    z-index: 10000; /* Ensure it's above most mobile UI */
+}
+
+.tw-is-mobile-view .tw-resize-handle {
+    display: none;
 }

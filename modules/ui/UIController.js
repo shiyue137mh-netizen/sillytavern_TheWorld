@@ -9,8 +9,8 @@ import { UIEventManager } from './UIEventManager.js';
 import { TimeAnimator } from './TimeAnimator.js';
 
 export class UIController {
-    constructor({ panelThemeManager, globalThemeManager, skyThemeController, ...dependencies }) {
-        this.dependencies = { ...dependencies, panelThemeManager, globalThemeManager, skyThemeController };
+    constructor({ panelThemeManager, globalThemeManager, skyThemeController, audioManager, ...dependencies }) {
+        this.dependencies = { ...dependencies, panelThemeManager, globalThemeManager, skyThemeController, audioManager };
         this.$ = dependencies.$;
         this.config = dependencies.config;
         this.state = dependencies.state;
@@ -41,7 +41,19 @@ export class UIController {
         this.createToggleButton();
         this.panelManager.applyInitialPanelState();
         this.eventManager.bindAllEvents();
+        this.handleResize(); // Initial check
         this.logger.log('UIController 初始化完成。');
+    }
+
+    handleResize() {
+        const isMobile = this.dependencies.win.innerWidth <= 768;
+        this.$('body').toggleClass('tw-is-mobile-view', isMobile);
+        this.logger.log(`[UI] Toggled mobile view class. Is mobile: ${isMobile}`);
+
+        // Also notify the global theme manager to update its state
+        if (this.dependencies.globalThemeManager.isActive) {
+            this.dependencies.globalThemeManager.updateTheme();
+        }
     }
 
     async loadPanelHtml() {

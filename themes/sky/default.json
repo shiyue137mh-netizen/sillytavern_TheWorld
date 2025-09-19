@@ -16,7 +16,7 @@
     { "hour": 11, "colors": ["#9be2fe", "#67d1fb"], "brightness": "light" },
     { "hour": 12, "colors": ["#90dffe", "#38a3d1"], "brightness": "light" },
     { "hour": 16, "colors": ["#2473ab", "#5b7983"], "brightness": "dark" },
-    { "hour": 17, "colors": ["#1e528e", "#e9ce5d"], "brightness": "dark" },
+    { "hour": 17, "colors": ["#1c4f82", "#d8a24c"], "brightness": "dark" },
     { "hour": 18, "colors": ["#154277", "#b26339"], "brightness": "dark" },
     { "hour": 18.5, "colors": ["#163C52", "#B7490F"], "brightness": "dark" },
     { "hour": 18.75, "colors": ["#010A10", "#2F1107"], "brightness": "dark" },

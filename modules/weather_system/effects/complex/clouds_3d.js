@@ -24,12 +24,14 @@ export class Clouds3dFX {
         this._updateLoop = this._updateLoop.bind(this);
     }
 
-    activate(period, weather, density, $fxTarget) {
+    activate(period, weather, density, $fxTarget, options = {}) {
+        const transitionDuration = options.transitionDuration || '7s';
+
         if (this.isActive) {
             this.updateCloudColor(period, weather);
             if (this.density.count !== (density || {count:1.0}).count) {
                  this.density = density || { count: 1.0 };
-                 this._generate();
+                 this._generate(transitionDuration);
             }
             return;
         }
@@ -49,7 +51,7 @@ export class Clouds3dFX {
         this.viewport.appendChild(this.world);
         $fxTarget.append(this.viewport);
 
-        this._generate();
+        this._generate(transitionDuration);
         this.updateCloudColor(period, weather);
         this._updateLoop();
     }
@@ -75,23 +77,29 @@ export class Clouds3dFX {
 
     updateCloudColor(period, weather) {
         if (!this.isActive || !this.world) return;
-
-        let filter = 'brightness(1)'; // Default: White clouds for clear/cloudy weather.
-
-        // Priority 1 (Black): Severe weather (thunder/storm) or night/dusk.
-        if (weather.includes('雷') || weather.includes('暴雨') || period.includes('夜') || period.includes('黄昏')) {
+    
+        let filter = 'brightness(1)'; // Default: White clouds for day
+    
+        // Priority 1: Severe Weather -> Darkest clouds
+        if (weather.includes('雷') || weather.includes('暴雨')) {
             filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)';
         }
-        // Priority 2 (Gray): General rain, snow, or overcast conditions. This will now correctly override sunrise/sunset.
+        // Priority 2: Normal Precipitation -> Gray clouds
         else if (weather.includes('雨') || weather.includes('雪') || weather.includes('阴')) {
             filter = 'brightness(0.75) contrast(0.9) saturate(0.8) grayscale(0.2)';
         }
-        // Priority 3 (Colorful): Sunrise/sunset, only if the weather is not rainy/stormy/etc.
+        // Priority 3: Time of Day (if weather is clear-ish)
+        else if (period.includes('夜')) {
+            filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)'; // Dark night clouds
+        }
+        else if (period.includes('黄昏')) { // The new transitional period requested
+            filter = 'brightness(0.5) contrast(1.0) saturate(0.9) grayscale(0.4)'; // Mid-gray dusk clouds
+        }
         else if (period.includes('日出') || period.includes('日落') || period.includes('清晨')) {
-            filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)';
+            filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)'; // Colorful sunrise/sunset
         }
         
-        // The default 'brightness(1)' for White clouds is used if no other condition is met.
+        // The default 'brightness(1)' is used if no other condition is met (daytime).
         
         this.$(this.world).find('.cloudLayer').css('filter', filter);
     }
@@ -99,22 +107,12 @@ export class Clouds3dFX {
 
     triggerLightning() {
         if (!this.isActive || !this.world) return;
-        const $world = this.$(this.world);
-        $world.css('filter', 'brightness(2.5)');
-        setTimeout(() => {
-            $world.css('filter', 'brightness(1)');
-            this.updateCloudColor(this.state.latestWorldStateData['时段'], this.state.latestWorldStateData['天气']);
-        }, 80);
-        setTimeout(() => {
-            $world.css('filter', 'brightness(1.8)');
-        }, 180);
-        setTimeout(() => {
-            $world.css('filter', 'brightness(1)');
-            this.updateCloudColor(this.state.latestWorldStateData['时段'], this.state.latestWorldStateData['天气']);
-        }, 300);
+        // The screen flash is now handled by WeatherSystem to be perfectly
+        // in sync with the lightning SVG strike. This function is now a no-op
+        // to prevent the cloud compression visual bug.
     }
     
-    _generate() {
+    _generate(transitionDuration = '7s') {
         this.layers = [];
         this.$(this.world).empty();
         // PERFORMANCE OPTIMIZATION: Reduced the base number of cloud clusters
@@ -123,11 +121,11 @@ export class Clouds3dFX {
         this.logger.log(`[3D Clouds] Generating ${cloudCount} cloud clusters based on density ${this.density.count}`);
 
         for (let j = 0; j < cloudCount; j++) {
-            this._createCloud();
+            this._createCloud(transitionDuration);
         }
     }
 
-    _createCloud() {
+    _createCloud(transitionDuration) {
         const div = document.createElement('div');
         div.className = 'cloudBase';
         const x = 800 - (Math.random() * 1600);
@@ -142,6 +140,7 @@ export class Clouds3dFX {
             const cloud = document.createElement('div');
             cloud.style.opacity = `${0.6 + Math.random() * 0.4}`;
             cloud.className = 'cloudLayer';
+            cloud.style.transition = `filter ${transitionDuration} ease-in-out`;
 
             const x = 256 - (Math.random() * 512);
             const y = 256 - (Math.random() * 512);
