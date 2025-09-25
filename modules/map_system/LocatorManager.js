@@ -92,22 +92,10 @@ export class LocatorManager {
             content += `\n\n`;
         }
 
-        // 5. Update Lorebook Entry
-        const worldbook = await this.lorebookManager.TavernHelper.getWorldbook(bookName);
-        const locatorEntry = worldbook.find(e => e.name === this.LOCATOR_ENTRY_NAME);
-
-        if (!locatorEntry) {
-            this.logger.log(`[LocatorManager] Creating new locator entry...`);
-            await this.lorebookManager.createEntry(bookName, {
-                name: this.LOCATOR_ENTRY_NAME,
-                content: content,
-                comment: 'Provides real-time map context to the AI. Do not edit manually.',
-                strategy: { type: 'constant' },
-                position: { type: 'before_character_definition', order: 1, role: 'system' }
-            });
-        } else {
-            await this.lorebookManager.updateEntryContent(bookName, this.LOCATOR_ENTRY_NAME, content, false);
-        }
+        // 5. Update Lorebook Entry using the new robust method
+        const position = { type: 'before_character_definition', order: 1 };
+        const comment = 'Provides real-time map context to the AI. Do not edit manually.';
+        await this.lorebookManager.createOrUpdateConstantEntry(bookName, this.LOCATOR_ENTRY_NAME, content, position, comment);
 
         this.logger.success(`[LocatorManager] Locator entry updated successfully.`);
     }

@@ -108,8 +108,11 @@ export class TheWorldApp {
         });
         this.dependencies.uiController = this.uiController;
 
-        // DEFERRED: MacroManager and CommandManager are now initialized in finalizeApiInitialization
+        // Initialize MacroManager as soon as TavernHelper is available
+        this.macroManager = new MacroManager(this.dependencies);
+        this.macroManager.registerAll();
 
+        // DEFERRED: CommandManager is now initialized in finalizeApiInitialization
         await this.uiController.init(); 
 
         if (TheWorldState.isGlobalThemeEngineEnabled) {
@@ -162,9 +165,6 @@ export class TheWorldApp {
         
         // Now it's safe to initialize these modules
         this.mapSystem.registerCommands();
-
-        this.macroManager = new MacroManager(this.dependencies);
-        this.macroManager.registerAll();
         
         this.commandManager = new CommandManager(this.dependencies);
         this.commandManager.registerAll();

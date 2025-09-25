@@ -58,25 +58,40 @@ export class LorebookManager {
         }
     }
 
-    async updateEntryContent(bookName, entryName, newContent, isJson = true) {
+    async createOrUpdateConstantEntry(bookName, entryName, content, position, comment) {
         if (!bookName) return;
         try {
-            await this.TavernHelper.updateWorldbookWith(bookName, (entries) => {
-                const entry = entries.find(e => e.name === entryName);
-                if (entry) {
-                    entry.content = isJson ? JSON.stringify(newContent, null, 2) : newContent;
-                }
-                return entries;
-            });
+            const worldbook = await this.TavernHelper.getWorldbook(bookName);
+            const existingEntry = worldbook.find(e => e.name === entryName);
+    
+            if (existingEntry) {
+                await this.TavernHelper.updateWorldbookWith(bookName, entries => {
+                    const entryToUpdate = entries.find(e => e.name === entryName);
+                    if (entryToUpdate) {
+                        entryToUpdate.content = content;
+                        entryToUpdate.position = position;
+                    }
+                    return entries;
+                });
+                this.logger.log(`[LorebookManager] Updated constant entry "${entryName}" in "${bookName}".`);
+            } else {
+                await this.createEntry(bookName, {
+                    name: entryName,
+                    content: content,
+                    comment: comment,
+                    strategy: { type: 'constant' },
+                    position: position,
+                });
+            }
         } catch (error) {
-            this.logger.error(`[LorebookManager] Failed to update entry "${entryName}" in "${bookName}":`, error);
+            this.logger.error(`[LorebookManager] Failed to create or update constant entry "${entryName}" in "${bookName}":`, error);
         }
     }
 
     async createOrUpdateNodeEntry(bookName, nodeId, nodeName, nodeData, keywords) {
         const entryName = `[MapNode:${nodeId}]`;
         const content = JSON.stringify(nodeData, null, 2);
-        const position = { type: 'relative', order: 0 }; // Set insertion order (depth) to 0
+        const position = { type: 'before_character_definition', order: 0 };
         
         const worldbook = await this.TavernHelper.getWorldbook(bookName);
         const existingEntry = worldbook.find(e => e.name === entryName);
@@ -88,6 +103,10 @@ export class LorebookManager {
                     entryToUpdate.content = content;
                     entryToUpdate.strategy.keys = keywords;
                     entryToUpdate.position = position;
+                    // Ensure recursion settings are applied
+                    if (!entryToUpdate.recursion) entryToUpdate.recursion = {};
+                    entryToUpdate.recursion.prevent_incoming = true; // excludeRecursion
+                    entryToUpdate.recursion.prevent_outgoing = true; // preventRecursion
                 }
                 return entries;
             });
@@ -98,7 +117,9 @@ export class LorebookManager {
                 keys: keywords,
                 strategy: { type: 'selective' },
                 position: position,
-                comment: `Details for node: ${nodeName}. Auto-generated.`
+                comment: `Details for node: ${nodeName}. Auto-generated.`,
+                // Add recursion settings
+                recursion: { prevent_incoming: true, prevent_outgoing: true }
             });
         }
     }
