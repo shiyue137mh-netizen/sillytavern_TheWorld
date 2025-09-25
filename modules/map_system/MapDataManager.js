@@ -46,6 +46,43 @@ export class MapDataManager {
         this._isInitialized = true;
     }
 
+    /**
+     * Finds a map node by its ID or, as a fallback, by its name.
+     * @param {string} idOrName The ID or name of the node.
+     * @returns {MapNodeWithId|null} The found node or null.
+     */
+    findNodeByIdOrName(idOrName) {
+        if (!idOrName) return null;
+        if (this.nodes.has(idOrName)) {
+            return this.nodes.get(idOrName);
+        }
+        for (const node of this.nodes.values()) {
+            if (node.name === idOrName) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Builds a comprehensive list of keywords for a node, including its parent's info.
+     * @param {MapNodeWithId} node The node to build keywords for.
+     * @returns {string[]} An array of unique keywords.
+     * @private
+     */
+    _buildKeywordsForNode(node) {
+        const keywords = [node.id, node.name];
+        if (node.parentId) {
+            const parentNode = this.nodes.get(node.parentId);
+            if (parentNode) {
+                keywords.push(parentNode.id);
+                keywords.push(parentNode.name);
+            }
+        }
+        // Use a Set to ensure uniqueness and filter out any falsy values.
+        return [...new Set(keywords.filter(Boolean))];
+    }
+
     async processMapUpdate(updateData) {
         if (!Array.isArray(updateData)) {
             this.logger.warn('[MapDataManager] Invalid <MapUpdate> format received. Expected an array of nodes.', updateData);
@@ -63,14 +100,22 @@ export class MapDataManager {
             if (node.op === 'add_or_update') {
                 const { op, ...nodeDetails } = node;
 
+                // Update in-memory data first to ensure parent data is available for keyword generation
+                const nodeInMemory = this.nodes.get(node.id) || { id: node.id };
+                Object.assign(nodeInMemory, nodeDetails);
+                this.nodes.set(node.id, nodeInMemory);
+                
+                // Build keywords using the most up-to-date in-memory data
+                const keywords = this._buildKeywordsForNode(nodeInMemory);
+                const { id, ...nodeDataForFile } = nodeInMemory;
+
                 await this.lorebookManager.createOrUpdateNodeEntry(
                     this.bookName,
                     node.id,
-                    node.name,
-                    nodeDetails
+                    nodeInMemory.name,
+                    nodeDataForFile,
+                    keywords // Pass the generated keywords
                 );
-
-                this.nodes.set(node.id, { id: node.id, ...nodeDetails });
 
             } else if (node.op === 'remove') {
                 await this.lorebookManager.deleteNodeEntry(this.bookName, node.id);
@@ -113,12 +158,14 @@ export class MapDataManager {
         Object.assign(nodeInMemory, detailUpdates);
         
         const { id, ...nodeDataForFile } = nodeInMemory;
+        const keywords = this._buildKeywordsForNode(nodeInMemory);
         
         await this.lorebookManager.createOrUpdateNodeEntry(
             this.bookName,
             nodeId,
             nodeInMemory.name,
-            nodeDataForFile
+            nodeDataForFile,
+            keywords // Pass the generated keywords
         );
     }
 }

@@ -98,7 +98,7 @@ export class UIController {
         }
     }
 
-    updateAllPanes() {
+    async updateAllPanes() {
         this.logger.log('正在更新所有面板内容...');
         const $wsPane = this.$('#world-state-pane').empty();
         const $mapPane = this.$('#map-nav-pane').empty();
@@ -121,7 +121,11 @@ export class UIController {
         }
 
         // Render the new map pane
-        this.renderer.renderMapPane($mapPane);
+        await this.renderer.renderMapPane($mapPane);
+        if (this.state.mapMode === 'advanced') {
+            this.eventManager._updatePinVisibility();
+        }
+
 
         this.renderer.renderSettingsPane($settingsPane);
         this.logger.log('所有面板内容更新完成。');

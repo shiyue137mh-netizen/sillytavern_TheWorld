@@ -48,18 +48,6 @@ export class CommandHandler {
         }
     }
 
-    _findNode(target) {
-        if (this.mapDataManager.nodes.has(target)) {
-            return this.mapDataManager.nodes.get(target);
-        }
-        for (const node of this.mapDataManager.nodes.values()) {
-            if (node.name === target) {
-                return node;
-            }
-        }
-        return null;
-    }
-
     _registerSetProperty() {
         const tool = {
             name: 'Map.SetProperty',
@@ -79,7 +67,7 @@ export class CommandHandler {
 
                 // Special case for setting player location, triggers locator update
                 if (target === 'player_location' && property === 'current_location_id') {
-                    const locationNode = this._findNode(value);
+                    const locationNode = this.mapDataManager.findNodeByIdOrName(value);
                     if (!locationNode) {
                         return `Error: Location "${value}" to set for player not found.`;
                     }
@@ -87,7 +75,7 @@ export class CommandHandler {
                     return `Successfully updated player location to ${locationNode.name}.`;
                 }
 
-                const node = this._findNode(target);
+                const node = this.mapDataManager.findNodeByIdOrName(target);
                 if (!node) {
                     return `Error: Node "${target}" not found.`;
                 }
@@ -104,23 +92,30 @@ export class CommandHandler {
     _registerAddNpc() {
         const tool = {
             name: 'Map.AddNPC',
-            description: '向一个已知地点添加一个NPC。',
+            displayName: '添加NPC到地点',
+            description: '向一个已知地点添加一个NPC。后台会自动为NPC生成唯一ID。',
             parameters: {
                 type: 'object',
                 properties: {
-                    target: { type: 'string', description: '节点的ID或名称。' },
-                    npc: { type: 'object', description: '要添加的NPC对象, 包含id和name。 e.g. {"id": "npc_hogger", "name": "霍格"}' },
+                    target: { type: 'string', description: '目标地点的ID或名称。' },
+                    npcName: { type: 'string', description: '要添加的NPC的名称。' },
                 },
-                required: ['target', 'npc'],
+                required: ['target', 'npcName'],
             },
             action: async (args) => {
-                const { target, npc } = args;
-                const node = this._findNode(target);
+                const { target, npcName } = args;
+                const node = this.mapDataManager.findNodeByIdOrName(target);
                 if (!node) return `Error: Node "${target}" not found.`;
-                if (!npc || !npc.id || !npc.name) return 'Error: Invalid NPC object provided.';
-                
-                await this.mapDataManager.addNpcToLocation(node.id, npc);
-                return `Successfully added ${npc.name} to ${node.name}.`;
+                if (!npcName || typeof npcName !== 'string' || npcName.trim() === '') {
+                    return 'Error: Invalid NPC name provided.';
+                }
+
+                // Generate a unique ID to handle potential duplicate names.
+                const npcId = npcName.toLowerCase().replace(/[\s\W]/g, '_') + `_${Math.random().toString(36).substring(2, 7)}`;
+                const npcObject = { id: npcId, name: npcName.trim() };
+
+                await this.mapDataManager.addNpcToLocation(node.id, npcObject);
+                return `Successfully added NPC "${npcName}" to ${node.name}.`;
             },
         };
         this.tools.set('AddNPC', tool);
@@ -130,22 +125,31 @@ export class CommandHandler {
     _registerRemoveNpc() {
         const tool = {
             name: 'Map.RemoveNPC',
-            description: '从一个已知地点移除一个NPC。',
+            displayName: '从地点移除NPC',
+            description: '根据NPC的名称从一个已知地点移除一个NPC。如果存在同名NPC，将移除第一个匹配项。',
             parameters: {
                 type: 'object',
                 properties: {
-                    target: { type: 'string', description: '节点的ID或名称。' },
-                    npcId: { type: 'string', description: '要移除的NPC的ID。' },
+                    target: { type: 'string', description: '目标地点的ID或名称。' },
+                    npcName: { type: 'string', description: '要移除的NPC的名称。' },
                 },
-                required: ['target', 'npcId'],
+                required: ['target', 'npcName'],
             },
             action: async (args) => {
-                const { target, npcId } = args;
-                const node = this._findNode(target);
+                const { target, npcName } = args;
+                const node = this.mapDataManager.findNodeByIdOrName(target);
                 if (!node) return `Error: Node "${target}" not found.`;
-                
-                await this.mapDataManager.removeNpcFromLocation(node.id, npcId);
-                return `Successfully removed NPC ${npcId} from ${node.name}.`;
+                if (!node.npcs || node.npcs.length === 0) {
+                    return `Error: No NPCs found at "${node.name}".`;
+                }
+
+                const npcToRemove = node.npcs.find(n => n.name === npcName);
+                if (!npcToRemove) {
+                    return `Error: NPC with name "${npcName}" not found at "${node.name}".`;
+                }
+
+                await this.mapDataManager.removeNpcFromLocation(node.id, npcToRemove.id);
+                return `Successfully removed NPC "${npcName}" from ${node.name}.`;
             },
         };
         this.tools.set('RemoveNPC', tool);

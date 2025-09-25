@@ -73,9 +73,10 @@ export class LorebookManager {
         }
     }
 
-    async createOrUpdateNodeEntry(bookName, nodeId, nodeName, nodeData) {
+    async createOrUpdateNodeEntry(bookName, nodeId, nodeName, nodeData, keywords) {
         const entryName = `[MapNode:${nodeId}]`;
         const content = JSON.stringify(nodeData, null, 2);
+        const position = { type: 'relative', order: 0 }; // Set insertion order (depth) to 0
         
         const worldbook = await this.TavernHelper.getWorldbook(bookName);
         const existingEntry = worldbook.find(e => e.name === entryName);
@@ -85,7 +86,8 @@ export class LorebookManager {
                 const entryToUpdate = entries.find(e => e.name === entryName);
                 if (entryToUpdate) {
                     entryToUpdate.content = content;
-                    entryToUpdate.strategy.keys = [nodeId, nodeName];
+                    entryToUpdate.strategy.keys = keywords;
+                    entryToUpdate.position = position;
                 }
                 return entries;
             });
@@ -93,8 +95,9 @@ export class LorebookManager {
             await this.createEntry(bookName, {
                 name: entryName,
                 content: content,
-                keys: [nodeId, nodeName],
+                keys: keywords,
                 strategy: { type: 'selective' },
+                position: position,
                 comment: `Details for node: ${nodeName}. Auto-generated.`
             });
         }

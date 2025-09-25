@@ -19,6 +19,8 @@ import { AudioManager } from './audio/index.js';
 import { CommandParser } from './core/CommandParser.js';
 import { CommandProcessor } from './core/CommandProcessor.js';
 import { MapSystem } from './map_system/index.js';
+import { MacroManager } from './api/MacroManager.js';
+import { CommandManager } from './api/CommandManager.js';
 
 
 export class TheWorldApp {
@@ -31,6 +33,7 @@ export class TheWorldApp {
         
         this.processorTimeout = null;
         this.previousStateSnapshot = null;
+        this.dependencies = {}; // To be populated in initialize
 
         this.logger = Logger;
         this.logger.log('TheWorldApp constructor called.');
@@ -45,7 +48,8 @@ export class TheWorldApp {
         // Create the single source of truth for time-based colors
         this.timeGradient = new TimeGradient();
 
-        const dependencies = {
+        // Store all dependencies in a single object for easy passing
+        this.dependencies = {
             $: this.jQuery,
             win: this.parentWin,
             context: this.SillyTavernContext,
@@ -58,52 +62,54 @@ export class TheWorldApp {
             toastr: this.parentWin.toastr,
         };
 
-        const injectionEngine = new InjectionEngine(dependencies);
-        dependencies.injectionEngine = injectionEngine;
+        const injectionEngine = new InjectionEngine(this.dependencies);
+        this.dependencies.injectionEngine = injectionEngine;
         this.injectionEngine = injectionEngine;
 
-        this.dataManager = new DataManager(dependencies);
-        dependencies.dataManager = this.dataManager;
-        this.stateParser = new StateParser(dependencies);
+        this.dataManager = new DataManager(this.dependencies);
+        this.dependencies.dataManager = this.dataManager;
+        this.stateParser = new StateParser(this.dependencies);
         
-        const audioManager = new AudioManager(dependencies);
+        const audioManager = new AudioManager(this.dependencies);
         this.audioManager = audioManager;
-        dependencies.audioManager = audioManager;
+        this.dependencies.audioManager = audioManager;
         
-        this.commandParser = new CommandParser(dependencies);
+        this.commandParser = new CommandParser(this.dependencies);
         
         // Initialize Map System
-        this.mapSystem = new MapSystem(dependencies);
-        dependencies.mapSystem = this.mapSystem;
-        this.mapSystem.registerCommands(); // Register map commands unconditionally.
-
-        // Initialize CommandProcessor WITH mapSystem
+        this.mapSystem = new MapSystem(this.dependencies);
+        this.dependencies.mapSystem = this.mapSystem;
+        // DEFER command registration until API is ready
+        
         this.commandProcessor = new CommandProcessor({ audioManager, mapSystem: this.mapSystem, logger: this.logger });
-
-        const panelThemeManager = new PanelThemeManager(dependencies);
+        
+        const panelThemeManager = new PanelThemeManager(this.dependencies);
         this.panelThemeManager = panelThemeManager;
-        const globalThemeManager = new GlobalThemeManager(dependencies);
+        const globalThemeManager = new GlobalThemeManager(this.dependencies);
         this.globalThemeManager = globalThemeManager;
         
-        dependencies.panelThemeManager = panelThemeManager;
-        dependencies.globalThemeManager = globalThemeManager;
+        this.dependencies.panelThemeManager = panelThemeManager;
+        this.dependencies.globalThemeManager = globalThemeManager;
         
         this.skyThemeController = new SkyThemeController({
-            ...dependencies,
+            ...this.dependencies,
             dataManager: this.dataManager
         });
-        dependencies.skyThemeController = this.skyThemeController;
+        this.dependencies.skyThemeController = this.skyThemeController;
 
-        // --- New Init Sequence ---
         this.dataManager.loadState();
         await this.skyThemeController.init();
-        this.introAnimation = new IntroAnimation(dependencies);
+        this.introAnimation = new IntroAnimation(this.dependencies);
         await this.introAnimation.run();
 
         this.uiController = new UIController({ 
-            ...dependencies,
+            ...this.dependencies,
             dataManager: this.dataManager,
         });
+        this.dependencies.uiController = this.uiController;
+
+        // DEFERRED: MacroManager and CommandManager are now initialized in finalizeApiInitialization
+
         await this.uiController.init(); 
 
         if (TheWorldState.isGlobalThemeEngineEnabled) {
@@ -117,13 +123,9 @@ export class TheWorldApp {
 
         this.setupEventListeners();
         
-        // Global Audio Unlocker: Ensure AudioContext is started on the first user interaction.
         const unlockHandler = () => {
             this.audioManager.unlockAudio();
-            // These listeners are { once: true }, so they remove themselves automatically.
-            // No need for manual removal.
         };
-        // Use `capture: true` to catch the event early before it might be stopped by other scripts.
         this.parentWin.document.addEventListener('click', unlockHandler, { once: true, capture: true });
         this.parentWin.document.addEventListener('keydown', unlockHandler, { once: true, capture: true });
 
@@ -132,10 +134,10 @@ export class TheWorldApp {
             triggerEffect: (effectName) => this.panelThemeManager.weatherSystem.triggerEffect(effectName)
         };
         
-        // Proactively load map data on startup
         const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
         if (bookName) {
             await this.mapSystem.initializeData(bookName);
+            await this.mapSystem.locatorManager.initializePlayerLocation();
         }
 
         const lastId = this.TavernHelper.getLastMessageId();
@@ -145,10 +147,27 @@ export class TheWorldApp {
         } else {
             this.logger.log(`New chat detected. Updating UI with default state.`);
             if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
-            this.uiController.updateAllPanes();
+            await this.uiController.updateAllPanes();
         }
         
         this.logger.success(`[The World v${Config.VERSION}] Initialization complete.`);
+    }
+
+    /**
+     * Initializes modules that depend on late-loading SillyTavern APIs.
+     * This is triggered by the 'EXTRAS_CONNECTED' event.
+     */
+    finalizeApiInitialization() {
+        this.logger.log('[API] EXTRAS_CONNECTED event received. Finalizing API-dependent initialization...');
+        
+        // Now it's safe to initialize these modules
+        this.mapSystem.registerCommands();
+
+        this.macroManager = new MacroManager(this.dependencies);
+        this.macroManager.registerAll();
+        
+        this.commandManager = new CommandManager(this.dependencies);
+        this.commandManager.registerAll();
     }
 
     debouncedProcessor(msgId, isReprocessing = false) {
@@ -234,6 +253,23 @@ export class TheWorldApp {
                 }
                 Object.assign(TheWorldState.latestWorldStateData, newWorldStateData);
                 updated = true;
+
+                // NEW: Implicit Location Update Logic
+                const newLocationName = newWorldStateData['地点'];
+                const hasExplicitMoveCommand = commands.some(cmd => 
+                    cmd.module === 'Map' && 
+                    cmd.function === 'SetProperty' && 
+                    cmd.args[0] === 'player_location'
+                );
+
+                if (newLocationName && !hasExplicitMoveCommand && this.mapSystem.mapDataManager.isInitialized()) {
+                    const targetNode = this.mapSystem.mapDataManager.findNodeByIdOrName(newLocationName);
+                    if (targetNode && targetNode.id !== this.state.currentPlayerLocationId) {
+                        this.logger.log(`[WorldState] Implicitly updating player location to "${newLocationName}" (ID: ${targetNode.id})`);
+                        await this.mapSystem.locatorManager.updateLocator(targetNode.id);
+                        // 'updated' is already true, so UI will refresh.
+                    }
+                }
             }
 
             if (updated) {
@@ -243,7 +279,7 @@ export class TheWorldApp {
             }
             
             if (this.uiController) {
-                this.uiController.updateAllPanes();
+                await this.uiController.updateAllPanes();
             }
 
         } catch (error) {
@@ -292,6 +328,9 @@ export class TheWorldApp {
     setupEventListeners() {
         const { eventSource, eventTypes } = this.SillyTavernContext;
 
+        // CRITICAL: Listen for the signal that all extension APIs are ready
+        eventSource.once(eventTypes.EXTRAS_CONNECTED, () => this.finalizeApiInitialization());
+
         eventSource.on(eventTypes.MESSAGE_RECEIVED, (id) => this.debouncedProcessor(id, false));
         eventSource.on(eventTypes.MESSAGE_EDITED, (id) => this.debouncedProcessor(id, true)); 
         eventSource.on(eventTypes.MESSAGE_SWIPED, (id) => this.debouncedProcessor(id, true)); 
@@ -307,7 +346,7 @@ export class TheWorldApp {
                  this.dataManager.saveState();
                  if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
                  if (this.uiController) {
-                    this.uiController.updateAllPanes();
+                    await this.uiController.updateAllPanes();
                  }
             } else {
                  this.logger.log(`A historical message (ID: ${id}) was deleted. Triggering full recalculation.`);
@@ -321,7 +360,7 @@ export class TheWorldApp {
                      this.dataManager.saveState();
                      if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
                      if (this.uiController) {
-                        this.uiController.updateAllPanes();
+                        await this.uiController.updateAllPanes();
                      }
                  }
             }
@@ -335,6 +374,7 @@ export class TheWorldApp {
             const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
             if (bookName) {
                 await this.mapSystem.initializeData(bookName);
+                await this.mapSystem.locatorManager.initializePlayerLocation();
             } else {
                 // If no book, clear the data manager's state to prevent showing old map data
                 this.mapSystem.mapDataManager.nodes.clear();
@@ -352,7 +392,7 @@ export class TheWorldApp {
                 this.dataManager.saveState();
                 if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
                 if (this.uiController) {
-                    this.uiController.updateAllPanes();
+                    await this.uiController.updateAllPanes();
                 }
             }
         });

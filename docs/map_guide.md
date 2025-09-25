@@ -1,4 +1,5 @@
 
+
 THE WORLD - 地图指令指南 v1.0
 =====================================
 
@@ -20,7 +21,8 @@ THE WORLD - 地图指令指南 v1.0
 *   **格式**: 在你的回复末尾，使用 `<MapUpdate>` 标签包裹一个JSON数组。每个JSON对象代表一个操作。
     *   `op`: 操作类型，`"add_or_update"` (添加或更新) 或 `"remove"` (删除)。
     *   `id`: 节点的唯一ID (必须)。
-    *   其他所有 [MapNode 属性](https://github.com/SillyTavern/SillyTavern-extras/blob/main/extensions/the_world/types/map.d.ts) 都是可选的，例如 `illustration` (节点插图) 和 `mapImage` (区域背景图)。
+    *   其他所有 [MapNode 属性](https://github.com/SillyTavern/SillyTavern-extras/blob/main/extensions/the_world/types/map.d.ts) 都是可选的，例如 `illustration` (节点插图)。
+    *   **`zoomThreshold`** (可选, 数字): 控制节点在哪个缩放级别开始可见。值越小，代表节点越重要，越早（地图缩得越远时）出现。默认值根据节点类型自动设定（例如，区域 > 城市 > 地标）。
 
 *   **示例**: 创建艾尔文森林，并在其中放置闪金镇，并为它们添加插图。
     ```xml
@@ -33,7 +35,7 @@ THE WORLD - 地图指令指南 v1.0
         "name": "艾尔文森林",
         "type": "region",
         "coords": "500,500",
-        "mapImage": "elwynn_map.jpg"
+        "zoomThreshold": 0.5
       },
       {
         "op": "add_or_update",
@@ -43,7 +45,8 @@ THE WORLD - 地图指令指南 v1.0
         "type": "city",
         "coords": "520,550",
         "description": "一个繁忙的人类小镇，以其旅店而闻名。",
-        "illustration": "goldshire_inn.png"
+        "illustration": "goldshire_inn.png",
+        "zoomThreshold": 1.0
       }
     ]
     </MapUpdate>
@@ -62,10 +65,10 @@ THE WORLD - 地图指令指南 v1.0
 *   **其他指令**:
     *   **设置属性**: `[Map.SetProperty(target, property, value)]`
         *示例*: `你清除了神龛周围的威胁。<command>[Map.SetProperty("shrine_of_unsung_heroes", "status", "cleared")]</command>`
-    *   **添加NPC**: `[Map.AddNPC(target, {"id": "npc_id", "name": "NPC名称"})]`
-        *示例*: `卫兵队长霍格出现在闪金镇。<command>[Map.AddNPC("goldshire", {"id": "npc_hogger", "name": "霍格"})]</command>`
-    *   **移除NPC**: `[Map.RemoveNPC(target, "要移除的NPC的ID")]`
-        *示例*: `霍格离开了闪金镇。<command>[Map.RemoveNPC("goldshire", "npc_hogger")]</command>`
+    *   **添加NPC**: `[Map.AddNPC(target, "NPC名称")]`
+        *示例*: `卫兵队长霍格出现在闪金镇。<command>[Map.AddNPC("goldshire", "霍格")]</command>`
+    *   **移除NPC**: `[Map.RemoveNPC(target, "NPC名称")]`
+        *示例*: `霍格离开了闪金镇。<command>[Map.RemoveNPC("goldshire", "霍格")]</command>`
 
 ### 3. AI 上下文参考 (你的眼睛)
 

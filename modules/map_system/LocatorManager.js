@@ -5,15 +5,54 @@
  */
 
 export class LocatorManager {
-    constructor({ logger, lorebookManager, mapDataManager }) {
+    constructor({ logger, lorebookManager, mapDataManager, state }) {
         this.logger = logger;
         this.lorebookManager = lorebookManager;
         this.mapDataManager = mapDataManager;
+        this.state = state;
         this.LOCATOR_ENTRY_NAME = '[TheWorld:Locator]';
+    }
+
+    async initializePlayerLocation() {
+        this.logger.log('[LocatorManager] Initializing player location from lorebook...');
+        const bookName = this.mapDataManager.bookName;
+        if (!bookName) {
+            this.logger.warn('[LocatorManager] Cannot initialize location, no book name.');
+            return;
+        }
+
+        try {
+            const worldbook = await this.lorebookManager.TavernHelper.getWorldbook(bookName);
+            const locatorEntry = worldbook.find(e => e.name === this.LOCATOR_ENTRY_NAME);
+            if (!locatorEntry || !locatorEntry.content) {
+                this.logger.log('[LocatorManager] No locator entry found. Player location is unknown.');
+                return;
+            }
+
+            const content = locatorEntry.content;
+            const pathMatch = content.match(/Path:.*?\(([^)]+)\)\s*$/m);
+
+            if (pathMatch && pathMatch[1]) {
+                const nodeId = pathMatch[1];
+                if (this.mapDataManager.nodes.has(nodeId)) {
+                    this.state.currentPlayerLocationId = nodeId;
+                    this.logger.success(`[LocatorManager] Initial player location set to: ${nodeId}`);
+                } else {
+                    this.logger.warn(`[LocatorManager] Found location ID "${nodeId}" in locator, but it does not exist in map data.`);
+                }
+            } else {
+                this.logger.log('[LocatorManager] Could not parse player location from existing locator entry.');
+            }
+
+        } catch (error) {
+            this.logger.error('[LocatorManager] Error initializing player location:', error);
+        }
     }
 
     async updateLocator(currentNodeId) {
         this.logger.log(`[LocatorManager] Updating locator for node: ${currentNodeId}`);
+        this.state.currentPlayerLocationId = currentNodeId;
+        
         const bookName = this.mapDataManager.bookName;
         if (!bookName) return;
 
@@ -64,7 +103,7 @@ export class LocatorManager {
                 content: content,
                 comment: 'Provides real-time map context to the AI. Do not edit manually.',
                 strategy: { type: 'constant' },
-                position: { type: 'before_character_definition', order: -1, role: 'system' }
+                position: { type: 'before_character_definition', order: 1, role: 'system' }
             });
         } else {
             await this.lorebookManager.updateEntryContent(bookName, this.LOCATOR_ENTRY_NAME, content, false);

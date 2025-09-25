@@ -201,7 +201,7 @@ export class UIEventManager {
             }
         });
 
-        $panel.on('click.tw_settings', '.tw-map-mode-switch button', (e) => {
+        $panel.on('click.tw_settings', '.tw-map-mode-switch button', async (e) => {
             const $button = this.$(e.currentTarget);
             const newMode = $button.data('mode');
             if (this.state.mapMode === newMode) return;
@@ -213,7 +213,7 @@ export class UIEventManager {
             }
             this.dataManager.saveState();
         
-            this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
             
             // Update the button's active state in settings
             $button.addClass('active').siblings().removeClass('active');
@@ -246,10 +246,10 @@ export class UIEventManager {
             this.logger.log(`字体大小已更改为: ${newSize}`);
         });
 
-        $panel.on('click.tw_settings', '#clear-all-data-btn', () => {
+        $panel.on('click.tw_settings', '#clear-all-data-btn', async () => {
             if (confirm('确定要清空所有存储的数据吗？\n此操作无法撤销！')) {
                 this.dataManager.clearAllStorage();
-                this.ui.updateAllPanes();
+                await this.ui.updateAllPanes();
             }
         });
         $panel.on('click.tw_settings', '#reset-ui-btn', () => {
@@ -290,7 +290,7 @@ export class UIEventManager {
             
             if (newBookName) {
                 await this.mapSystem.initializeData(newBookName);
-                this.ui.updateAllPanes(); // This re-renders everything
+                await this.ui.updateAllPanes(); // This re-renders everything
                 this.toastr.success(`地图档案 "${newBookName}" 已成功创建并绑定！`, '创建成功');
             } else {
                 $button.html(originalText).prop('disabled', false);
@@ -302,8 +302,9 @@ export class UIEventManager {
         $body.on('click.tw_map_editor_setup', '#tw-map-edit-toggle-btn', (e) => this.toggleEditorMode(e));
         
         // This handles general map panning and zooming, which is always active in the map pane.
-        $body.on('mousedown.tw_map_pan', '.tw-map-viewport', (e) => this.handleMapPanStart(e));
+        $body.on('mousedown.tw_map_pan touchstart.tw_map_pan', '.tw-map-viewport', (e) => this.handleMapPanStart(e));
         $body.on('wheel.tw_map_zoom', '.tw-map-viewport', (e) => this.handleMapZoom(e));
+        $body.on('click.tw_map_zoom_btn', '.tw-map-zoom-btn', (e) => this.handleZoomButtonClick(e));
 
         // Advanced Map Hover Effects (works in both view and edit mode)
         $body.on('mouseenter.tw_map_hover', '#map-nav-pane .tw-map-pin', (e) => {
@@ -350,50 +351,76 @@ export class UIEventManager {
             }
         });
 
-        // NEW: Illustration Hover Card
+        // NEW: Illustration & Description Hover Card
         $body.on('mouseenter.tw_map_illustration', '#map-nav-pane .tw-map-pin', (e) => {
             const $pin = this.$(e.currentTarget);
             const nodeId = $pin.data('node-id');
             const node = this.mapSystem.mapDataManager.nodes.get(nodeId);
-
-            if (node && node.illustration) {
-                // Remove any old card
-                this.$('.tw-map-hover-card').remove();
-
-                const imageUrl = `${this.config.IMAGE_BASE_URL}${node.illustration}`;
+        
+            // MODIFIED: Check for illustration OR description
+            if (node && (node.illustration || node.description)) {
+                this.$('.tw-map-hover-card').remove(); // Remove any old card
+        
                 const $card = this.$('<div class="tw-map-hover-card"></div>');
-                const $img = this.$('<img>').attr('src', imageUrl);
-
-                $card.append($img);
+                let $img = null;
+        
+                // Add image if it exists
+                if (node.illustration) {
+                    const imageUrl = `${this.config.IMAGE_BASE_URL}${node.illustration}`;
+                    $img = this.$('<img>').attr('src', imageUrl);
+                    $card.append($img);
+                }
+        
+                // Add description if it exists
+                if (node.description) {
+                    // Use <p> for better semantics and styling
+                    const $desc = this.$('<p class="tw-map-hover-description"></p>').text(node.description);
+                    $card.append($desc);
+                }
+        
                 this.$('body').append($card);
-
+        
                 const positionCard = () => {
                     const cardWidth = $card.outerWidth();
                     const cardHeight = $card.outerHeight();
                     const winWidth = this.win.innerWidth;
                     const winHeight = this.win.innerHeight;
                     const offset = 20;
-
+        
                     let top = e.clientY + offset;
                     let left = e.clientX + offset;
-
+        
                     if (left + cardWidth > winWidth) {
                         left = e.clientX - cardWidth - offset;
                     }
                     if (top + cardHeight > winHeight) {
                         top = e.clientY - cardHeight - offset;
                     }
-
+        
                     $card.css({ top: `${top}px`, left: `${left}px` });
                     requestAnimationFrame(() => {
                         $card.addClass('visible');
                     });
                 };
-
-                // Position after image loads to get correct dimensions
-                $img.on('load', positionCard).on('error', () => $card.remove());
-                // Also position right away in case image is cached
-                if ($img[0].complete) {
+        
+                // Decide when to position the card
+                if ($img) {
+                    // If there's an image, wait for it to load to get correct dimensions
+                    $img.on('load', positionCard).on('error', () => {
+                        $img.remove();
+                        // If the image fails but a description exists, reposition the card with just the text.
+                        if (node.description) {
+                            positionCard();
+                        } else {
+                            $card.remove(); // If only an image existed and it failed, remove the card.
+                        }
+                    });
+                    // If image is cached, it might already be complete
+                    if ($img[0].complete) {
+                        positionCard();
+                    }
+                } else {
+                    // If there's no image, we can position immediately
                     positionCard();
                 }
             }
@@ -409,23 +436,47 @@ export class UIEventManager {
             }
         });
 
-
-        // Lite Map Navigation Events
-        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-item', (e) => {
-            const nodeId = this.$(e.currentTarget).data('node-id');
-            if (this.renderer._nodeHasChildren(nodeId)) {
-                this.state.liteMapPathStack.push(nodeId);
-                this.renderer.renderMapPane(this.$('#map-nav-pane'));
+        // NEW: Click to move in advanced map view
+        $body.on('click.tw_map_move_adv', '#map-nav-pane .tw-map-pin', (e) => {
+            // Only trigger move if not in editor mode. Clicks in editor mode are for selection.
+            if (!this.$('#map-nav-pane').hasClass('editor-mode-active')) {
+                const nodeId = this.$(e.currentTarget).data('node-id');
+                const node = this.mapSystem.mapDataManager.nodes.get(nodeId);
+                if (node) {
+                    const command = `/send {{user}}试图移动到 ${node.name} | /trigger`;
+                    this.triggerSlash(command);
+                    this.toastr.info(`正在尝试移动到: ${node.name}`);
+                }
             }
         });
-        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-breadcrumb-item[data-index]', (e) => {
+
+        // Lite Map Navigation Events
+        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-item', async (e) => {
+            const nodeId = this.$(e.currentTarget).data('node-id');
+            const node = this.mapSystem.mapDataManager.nodes.get(nodeId);
+        
+            if (!node) return;
+        
+            // If it has children, navigate into it.
+            if (this.renderer._nodeHasChildren(nodeId)) {
+                this.state.liteMapPathStack.push(nodeId);
+                await this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            } else {
+                // If it's a leaf node, trigger the move command.
+                const command = `/send {{user}}试图移动到 ${node.name} | /trigger`;
+                this.triggerSlash(command);
+                this.toastr.info(`正在尝试移动到: ${node.name}`);
+            }
+        });
+        
+        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-breadcrumb-item[data-index]', async (e) => {
             const index = parseInt(this.$(e.currentTarget).data('index'), 10);
             this.state.liteMapPathStack = this.state.liteMapPathStack.slice(0, index + 1);
-            this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
         });
-        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-breadcrumb-item-root', () => {
+        $body.on('click.tw_map_nav_lite', '#map-nav-pane .tw-lite-map-breadcrumb-item-root', async () => {
             this.state.liteMapPathStack = [];
-            this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
         });
     }
     
@@ -521,10 +572,64 @@ export class UIEventManager {
         this.mapState.zoom = newZoom;
         
         this.applyMapTransform();
+        this._updatePinVisibility(); // LOD check on zoom
     }
+
+    handleZoomButtonClick(e) {
+        const direction = this.$(e.currentTarget).data('zoom-direction');
+        const currentZoom = this.mapState.zoom;
+        const zoomStep = 0.2 * currentZoom; // Make zoom step proportional
+        const newZoomUncapped = direction === 'in'
+            ? currentZoom + zoomStep
+            : currentZoom - zoomStep;
+
+        const newZoom = Math.max(0.2, Math.min(5, newZoomUncapped));
+
+        const $viewport = this.$('.tw-map-viewport');
+        const rect = $viewport[0].getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const worldX = (centerX - this.mapState.pan.x) / this.mapState.zoom;
+        const worldY = (centerY - this.mapState.pan.y) / this.mapState.zoom;
+        
+        this.mapState.pan.x = centerX - worldX * newZoom;
+        this.mapState.pan.y = centerY - worldY * newZoom;
+        this.mapState.zoom = newZoom;
+        
+        this.applyMapTransform();
+        this._updatePinVisibility();
+    }
+
+
+    /**
+     * NEW: Level of Detail (LOD) Logic
+     * Toggles pin visibility based on the current zoom level.
+     */
+    _updatePinVisibility() {
+        const $pins = this.$('.tw-map-pin');
+        if ($pins.length === 0) return;
+        
+        const currentZoom = this.mapState.zoom;
+
+        $pins.each((_, pin) => {
+            const $pin = this.$(pin);
+            const threshold = parseFloat($pin.data('zoom-threshold'));
+            
+            // Get the hide threshold. If it doesn't exist (not a parent), default to Infinity.
+            const minChildThreshold = parseFloat($pin.data('min-child-threshold') || Infinity);
+            
+            // A pin is visible if the zoom level is GTE its own threshold,
+            // AND less than the threshold of its most important child.
+            const isVisible = currentZoom >= threshold && currentZoom < minChildThreshold;
+
+            $pin.toggleClass('tw-pin-hidden', !isVisible);
+        });
+    }
+
     
     // Editor Mode Handlers
-    toggleEditorMode(e) {
+    async toggleEditorMode(e) {
         const $button = this.$(e.currentTarget);
         const $mapPane = this.$('#map-nav-pane');
         
@@ -537,6 +642,11 @@ export class UIEventManager {
             $button.text('完成编辑 ✅');
             this.dialogs.showMapEditorToolbox($mapPane);
             this.bindMapEditorEvents($mapPane);
+
+            // NEW: Fetch and populate background URL
+            const bgUrl = await this.mapSystem.atlasManager.getBackgroundImage();
+            this.$('#tw-map-bg-url').val(bgUrl || '');
+
         } else {
             this.logger.log('[Map Editor] Editor mode DEACTIVATED');
             $button.text('编辑地图 ✏️');
@@ -559,6 +669,22 @@ export class UIEventManager {
         // Toolbox interactions
         $mapPane.on('click.tw_map_editor', '.tw-map-node-tree-item', (e) => this.handleNodeListClick(e));
         this.bindToolboxEditorEvents($mapPane);
+        
+        // NEW: Event for setting background
+        $mapPane.on('click.tw_map_editor', '#tw-set-map-bg-btn', async (e) => {
+            const $button = this.$(e.currentTarget);
+            const originalText = $button.text();
+            $button.text('正在保存...').prop('disabled', true);
+            
+            const newUrl = this.$('#tw-map-bg-url').val();
+            await this.mapSystem.atlasManager.setBackgroundImage(newUrl);
+            
+            // Refresh the map pane to show the new background
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            
+            this.toastr.success('地图背景已更新！');
+            $button.text(originalText).prop('disabled', false);
+        });
     }
     
     unbindMapEditorEvents($mapPane) {
@@ -624,7 +750,7 @@ export class UIEventManager {
         
         // Refresh UI
         this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
-        this.renderer.renderMapPane(this.$('#map-nav-pane'));
+        await this.renderer.renderMapPane(this.$('#map-nav-pane'));
         await this.mapSystem.atlasManager.updateAtlas();
     }
 
@@ -667,7 +793,7 @@ export class UIEventManager {
             
             // Refresh UI
             this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
-            this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
             await this.mapSystem.atlasManager.updateAtlas();
         };
 
@@ -685,7 +811,7 @@ export class UIEventManager {
                 // Refresh UI
                 $editor.find('#node-coords').val('');
                 await this.mapSystem.atlasManager.updateAtlas();
-                this.renderer.renderMapPane(this.$('#map-nav-pane'));
+                await this.renderer.renderMapPane(this.$('#map-nav-pane'));
                 this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
             }
         });
@@ -702,13 +828,16 @@ export class UIEventManager {
                  
                  // Refresh UI
                  this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
-                 this.renderer.renderMapPane(this.$('#map-nav-pane'));
+                 await this.renderer.renderMapPane(this.$('#map-nav-pane'));
                  await this.mapSystem.atlasManager.updateAtlas();
              }
         });
     }
 
-    handlePinDragStart(e) {
+    async handlePinDragStart(e) {
+        if (!this.$('#map-nav-pane').hasClass('editor-mode-active')) {
+            return;
+        }
         if (e.which !== 1) return;
         e.preventDefault();
         e.stopPropagation();
@@ -778,11 +907,14 @@ export class UIEventManager {
         this.mapState.draggedPinGhost = null;
 
         await this.mapSystem.atlasManager.updateAtlas();
-        this.renderer.renderMapPane(this.$('#map-nav-pane'));
+        await this.renderer.renderMapPane(this.$('#map-nav-pane'));
         this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
     }
 
-    handleUnchartedDragStart(e) {
+    async handleUnchartedDragStart(e) {
+        if (!this.$('#map-nav-pane').hasClass('editor-mode-active')) {
+            return;
+        }
         if (e.which !== 1) return;
         e.preventDefault();
         e.stopPropagation();
@@ -841,7 +973,7 @@ export class UIEventManager {
     
             // Full UI Refresh
             await this.mapSystem.atlasManager.updateAtlas();
-            this.renderer.renderMapPane(this.$('#map-nav-pane'));
+            await this.renderer.renderMapPane(this.$('#map-nav-pane'));
             this.dialogs._renderAndAttachNodeTree(this.$('.tw-map-node-tree'));
         }
     

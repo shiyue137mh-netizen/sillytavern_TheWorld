@@ -2,6 +2,8 @@
  * The World - UI Renderer
  * @description Responsible for generating HTML content for the UI panes.
  */
+import { HOLIDAY_DATA } from '../utils/holidays.js';
+
 export class UIRenderer {
     constructor({ $, config, state, skyThemeController, mapSystem, logger }) {
         this.$ = $;
@@ -57,24 +59,37 @@ export class UIRenderer {
 
         const period = data['时段'] || '白天';
         const weather = data['天气'] || '';
-        const timeString = data['时间'] || '2024年01月01日-星期一-00:00';
+        const timeString = data['时间'] || '2024年01月01日-00:00';
         const seasonStr = data['季节'] || (timeString.match(/(春|夏|秋|冬)/) || [])[0];
 
         // New Time Parsing Logic
-        const modernRegex = /(\d{4})[年-]?.*?(\d{1,2})[月-]?(\d{1,2})[日-]?.*?(星期.)?.*?(\d{2}:\d{2})/;
+        const modernRegex = /(\d{4})[年-]?.*?(\d{1,2})[月-]?(\d{1,2})[日-]?.*?(\d{2}:\d{2})/;
         const fantasyRegex = /(\d{1,2}:\d{2})/;
         const modernMatch = timeString.match(modernRegex);
         const fantasyMatch = timeString.match(fantasyRegex);
 
         let timeHtml;
+        let weekdayHtml = '';
+        let holidayHtml = '';
+
         if (modernMatch) {
-            const [, year, month, day, weekday, time] = modernMatch;
+            const [, year, month, day, time] = modernMatch;
+            const date = new Date(year, month - 1, day);
+            const weekday = `星期${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`;
+            weekdayHtml = `<div class="ws-weekday">${weekday}</div>`;
+
+            const holidayKey = `${month}-${day}`;
+            if (HOLIDAY_DATA[holidayKey]) {
+                const holiday = HOLIDAY_DATA[holidayKey];
+                holidayHtml = `<div class="ws-holiday-display">${holiday.icon} ${holiday.name}</div>`;
+            }
+
             const [hour, minute] = time.split(':');
             timeHtml = `
                 <div class="ws-time-main" id="tw-time-display-main">${hour}<span>:${minute}</span></div>
                 <div class="ws-time-secondary">
                     <div class="ws-date-full">${year} / ${String(month).padStart(2, '0')} / ${String(day).padStart(2, '0')}</div>
-                    <div class="ws-weekday">${weekday || ''}</div>
+                    ${weekdayHtml}
                 </div>
             `;
         } else if (fantasyMatch) {
@@ -120,6 +135,7 @@ export class UIRenderer {
                 <hr class="ws-separator">
                 <div class="ws-secondary-info">
                      ${(seasonStr ? `<div class="ws-info-block"><span class="ws-label">${seasonIcon} 季节:</span><span class="ws-value">${seasonStr}</span></div>` : '')}
+                     ${holidayHtml}
                 </div>
                 ${(data['场景'] ? `<div class="ws-info-block ws-scene-block"><span class="ws-label">🏞️ 场景:</span><div class="ws-value">${(data['场景'] || '').replace(/\[\[(.*?)\]\]/g, '<span class="ws-interactive-keyword" data-keyword="$1">$1</span>')}</div></div>` : '')}
                 ${(data['插图'] ? `<div class="ws-illustration-item"><a href="${this.config.IMAGE_BASE_URL}${data['插图']}" target="_blank" rel="noopener noreferrer"><img src="${this.config.IMAGE_BASE_URL}${data['插图']}" alt="${data['插图']}"></a></div>` : '')}
@@ -127,17 +143,32 @@ export class UIRenderer {
         $pane.html(contentHtml);
     }
 
-    renderMapPane($pane) {
+    async renderMapPane($pane) {
         $pane.empty();
         if (this.state.mapMode === 'lite') {
             this._renderLiteMapPane($pane);
         } else {
-            this._renderAdvancedMapPane($pane);
+            await this._renderAdvancedMapPane($pane);
         }
     }
 
-    _renderAdvancedMapPane($pane) {
-        const { mapDataManager } = this.mapSystem;
+    _getNodeZoomThreshold(node) {
+        if (node.zoomThreshold !== undefined && node.zoomThreshold !== null) {
+            return Number(node.zoomThreshold);
+        }
+        // Default logic
+        if (!node.parentId) return 0.2; // Top-level nodes always visible
+        switch (node.type) {
+            case 'region': return 0.5;
+            case 'city': return 1.0;
+            case 'landmark': return 1.5;
+            case 'dungeon': return 1.5;
+            default: return 1.2;
+        }
+    }
+
+    async _renderAdvancedMapPane($pane) {
+        const { mapDataManager, atlasManager } = this.mapSystem;
 
         const $mapContent = this.$('<div id="tw-advanced-map-content"></div>');
         $pane.append($mapContent);
@@ -163,12 +194,11 @@ export class UIRenderer {
         const $viewport = this.$('<div class="tw-map-viewport"></div>');
         const $canvas = this.$('<div class="tw-map-canvas"></div>');
         
-        // Check for a global map image from a root node
-        const rootNodeWithMap = Array.from(mapDataManager.nodes.values()).find(node => !node.parentId && node.mapImage);
-        if (rootNodeWithMap) {
-            const imageUrl = `${this.config.IMAGE_BASE_URL}${rootNodeWithMap.mapImage}`;
-            $canvas.css('background-image', `url(${imageUrl})`);
-            this.logger.log(`[UIRenderer] Applied map background: ${imageUrl}`);
+        // NEW: Smart background loading logic
+        const globalBgUrl = await atlasManager.getBackgroundImage();
+        if (globalBgUrl) {
+            $canvas.css('background-image', `url(${globalBgUrl})`);
+            this.logger.log(`[UIRenderer] Applied global map background from Atlas: ${globalBgUrl}`);
         }
 
         const $svgLayer = this.$(`<svg class="tw-map-lines-svg"></svg>`);
@@ -177,14 +207,35 @@ export class UIRenderer {
         
         let hasUnplottedNodes = false;
         
+        // Pre-calculate children for efficiency
+        const nodesWithChildren = new Map();
+        mapDataManager.nodes.forEach(node => {
+            if (node.parentId && mapDataManager.nodes.has(node.parentId)) {
+                if (!nodesWithChildren.has(node.parentId)) {
+                    nodesWithChildren.set(node.parentId, []);
+                }
+                nodesWithChildren.get(node.parentId).push(node);
+            }
+        });
+        
         mapDataManager.nodes.forEach(node => {
             if (node.coords) {
                 const [x, y] = node.coords.split(',').map(Number);
+                const zoomThreshold = this._getNodeZoomThreshold(node);
+
                 const $pin = this.$('<div>')
                     .addClass('tw-map-pin')
                     .attr('data-node-id', node.id)
+                    .attr('data-zoom-threshold', zoomThreshold)
                     .css({ left: `${x / 10}%`, top: `${y / 10}%` });
                 
+                const children = nodesWithChildren.get(node.id);
+                if (children && children.length > 0) {
+                    $pin.addClass('is-cluster-parent');
+                    const minChildThreshold = Math.min(...children.map(child => this._getNodeZoomThreshold(child)));
+                    $pin.attr('data-min-child-threshold', minChildThreshold);
+                }
+
                 if (node.parentId && mapDataManager.nodes.has(node.parentId)) {
                     $pin.addClass('is-child-node');
                 } else {
@@ -209,6 +260,15 @@ export class UIRenderer {
         }
         
         $mapContent.append($viewport);
+
+        // Add zoom controls
+        const $zoomControls = this.$(`
+            <div class="tw-map-zoom-controls">
+                <button class="tw-map-zoom-btn has-ripple" data-zoom-direction="in" title="放大">+</button>
+                <button class="tw-map-zoom-btn has-ripple" data-zoom-direction="out" title="缩小">-</button>
+            </div>
+        `);
+        $mapContent.append($zoomControls);
     }
 
     _renderLiteMapPane($pane) {

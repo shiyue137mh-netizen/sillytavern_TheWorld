@@ -18,6 +18,7 @@ export const TheWorldState = {
     buttonTop: 10,
     buttonLeft: null,
     liteMapPathStack: [], // NEW: For lite map navigation state
+    currentPlayerLocationId: null, // NEW: For Macro API
 
     // --- Settings State ---
     activeSkyThemeId: 'default', // NEW: To store the selected sky theme

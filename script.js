@@ -12,14 +12,18 @@ import { Logger } from './modules/logger.js';
  * This is crucial to prevent race conditions on startup.
  */
 function areApisReady() {
+    const st = window.parent?.SillyTavern;
+    if (!st) return false;
+
+    // REMOVED SlashCommandParser check to prevent startup hangs.
+    // Command/Macro initialization is now deferred and event-driven within TheWorldApp.
     return !!(
-        window.parent &&
-        window.parent.SillyTavern &&
+        st &&
         window.parent.TavernHelper &&
         window.parent.jQuery &&
         window.parent.toastr &&
-        window.parent.SillyTavern.getContext &&
-        window.parent.SillyTavern.getContext().eventSource
+        st.getContext &&
+        st.getContext().eventSource
     );
 }
 

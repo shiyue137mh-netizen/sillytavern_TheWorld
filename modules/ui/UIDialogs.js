@@ -539,6 +539,10 @@ export class UIDialogs {
                             <textarea id="node-desc" data-prop="description"></textarea>
                         </div>
                         <div class="tw-editor-field">
+                            <label for="node-illustration">插图 (文件名)</label>
+                            <input type="text" id="node-illustration" data-prop="illustration" placeholder="e.g., my_image.png">
+                        </div>
+                        <div class="tw-editor-field">
                             <label for="node-status">状态</label>
                             <select id="node-status" data-prop="status">
                                 <option value="">无</option>
@@ -552,6 +556,15 @@ export class UIDialogs {
                         <div class="tw-map-editor-footer">
                             <button class="tw-delete-node-btn has-ripple">删除节点</button>
                         </div>
+                    </div>
+                    <!-- NEW SECTION FOR GLOBAL MAP SETTINGS -->
+                    <div class="tw-map-global-settings">
+                        <div class="tw-map-global-settings-divider"></div>
+                        <div class="tw-editor-field">
+                            <label for="tw-map-bg-url">地图背景图片 URL</label>
+                            <input type="text" id="tw-map-bg-url" placeholder="粘贴完整的图片 URL">
+                        </div>
+                        <button id="tw-set-map-bg-btn" class="has-ripple">设置背景</button>
                     </div>
                 </div>
             </div>
@@ -613,6 +626,7 @@ export class UIDialogs {
         $editor.find('#node-type').val(node.type || '');
         $editor.find('#node-coords').val(node.coords || '');
         $editor.find('#node-desc').val(node.description || '');
+        $editor.find('#node-illustration').val(node.illustration || '');
         $editor.find('#node-status').val(node.status || '');
     }
 }

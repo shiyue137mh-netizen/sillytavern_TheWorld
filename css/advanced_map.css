@@ -50,6 +50,7 @@
     align-items: center;
     -webkit-user-select: none;
     user-select: none;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
 }
 .tw-map-pin::before {
     content: '';
@@ -86,6 +87,13 @@
     white-space: nowrap;
     transform: translateY(12px); /* Position below the pin point */
     pointer-events: none; /* Make sure label doesn't interfere with hover */
+}
+
+/* NEW: Level of Detail (LOD) Hiding */
+.tw-map-pin.tw-pin-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.5);
 }
 
 
@@ -245,30 +253,6 @@
     }
 }
 
-
-/* Custom Pin Image Styles */
-.tw-map-pin.has-custom-image::before {
-    content: '';
-    display: block;
-    width: 32px;  /* Default size */
-    height: 32px; /* Default size */
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center bottom;
-    /* Reset other emoji styles */
-    font-size: initial;
-    text-shadow: none;
-    /* Remove circle styles */
-    background-color: transparent;
-    border: none;
-    box-shadow: none;
-}
-.tw-map-pin.has-custom-image:hover::before {
-    transform: scale(1.1); /* Slightly different hover effect for images */
-    background-color: transparent;
-    box-shadow: none;
-}
-
 /* --- Map Editor Mode --- */
 #tw-map-edit-toggle-btn {
     position: absolute;
@@ -314,7 +298,25 @@
     display: flex;
     flex-direction: column;
     backdrop-filter: blur(5px);
+    
+    /* FORCE DARK THEME ON EDITOR TOOLBOX FOR READABILITY */
+    --dialog-bg: rgba(20, 22, 28, 0.9);
+    --dialog-text: #e2e8f0;
+    --dialog-border: #4a5568;
+    --dialog-header-border: #4a5568;
+    --dialog-input-bg: #2d3748;
+    --dialog-input-border: #4a5568;
+    --dialog-button-bg: #4a5568;
+    --dialog-button-text: #e2e8f0;
+    --dialog-button-hover-bg: #718096;
+    --dialog-button-primary-bg: #738c82;
+    --dialog-button-primary-text: #fff;
+    --dialog-button-primary-hover-bg: #8aa69a;
+    --text-main: #e2e8f0;
+    --text-secondary: #a0aec0;
+    color: var(--dialog-text);
 }
+
 
 #map-nav-pane.editor-mode-active .tw-map-editor-toolbox {
     transform: translateX(0);
@@ -514,7 +516,7 @@
     color: white;
 }
 
-/* NEW: Illustration Hover Card */
+/* NEW: Illustration & Description Hover Card */
 .tw-map-hover-card {
     position: fixed;
     z-index: 10002; /* Higher than panel and toggle button */
@@ -525,10 +527,13 @@
     padding: 8px;
     pointer-events: none;
     max-width: 300px;
-    max-height: 250px;
+    max-height: 400px; /* Increased max-height */
     opacity: 0;
     transform: scale(0.95) translateY(10px);
     transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+    display: flex; /* Added for layout */
+    flex-direction: column; /* Stack image and text */
+    gap: 8px; /* Space between image and text */
 }
 
 .tw-map-hover-card.visible {
@@ -538,10 +543,105 @@
 
 .tw-map-hover-card img {
     max-width: 100%;
-    max-height: 100%;
     width: auto;
     height: auto;
     object-fit: contain;
     display: block;
     border-radius: 4px;
+    flex-shrink: 0; /* Prevent image from shrinking */
+}
+
+.tw-map-hover-description {
+    font-size: 0.9em;
+    color: #e2e8f0;
+    line-height: 1.5;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto; /* Add scroll for long descriptions */
+    flex-shrink: 1; /* Allow description to shrink and scroll */
+    scrollbar-width: thin;
+    scrollbar-color: #718096 #2d3748;
+}
+
+.tw-map-hover-description::-webkit-scrollbar {
+    width: 6px;
+}
+.tw-map-hover-description::-webkit-scrollbar-track {
+    background: #2d3748;
+    border-radius: 3px;
+}
+.tw-map-hover-description::-webkit-scrollbar-thumb {
+    background-color: #718096;
+    border-radius: 3px;
+}
+
+/* --- Global Settings in Editor Toolbox --- */
+.tw-map-global-settings {
+    padding: 15px;
+    background: rgba(0,0,0,0.1);
+    flex-shrink: 0;
+}
+
+.tw-map-global-settings-divider {
+    height: 1px;
+    background: var(--dialog-header-border);
+    margin: 0 15px;
+}
+
+#tw-set-map-bg-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 1em;
+    background: var(--dialog-button-bg);
+    color: var(--dialog-button-text);
+    border: 1px solid var(--dialog-input-border);
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+#tw-set-map-bg-btn:hover {
+    background: var(--dialog-button-hover-bg);
+}
+#tw-set-map-bg-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Zoom Controls --- */
+.tw-map-zoom-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.tw-map-zoom-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--dialog-border);
+    background: rgba(45, 55, 72, 0.8);
+    backdrop-filter: blur(4px);
+    color: var(--dialog-text);
+    border-radius: 8px;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background-color 0.2s, transform 0.2s;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.tw-map-zoom-btn:hover {
+    background: rgba(74, 85, 104, 0.9);
+}
+
+.tw-map-zoom-btn:active {
+    transform: scale(0.95);
 }
