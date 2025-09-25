@@ -3,14 +3,16 @@
  * @description Manages all popup dialogs.
  */
 export class UIDialogs {
-    constructor({ $, state, win, logger, config, triggerSlash, timeGradient }) {
+    constructor({ $, state, win, logger, config, triggerSlash, timeGradient, mapSystem, renderer }) {
         this.$ = $;
         this.state = state;
         this.win = win;
         this.logger = logger;
         this.config = config;
         this.triggerSlash = triggerSlash;
-        this.timeGradient = timeGradient; // <-- 注入依赖
+        this.timeGradient = timeGradient;
+        this.mapSystem = mapSystem;
+        this.renderer = renderer;
     }
 
     showKeywordInteractDialog(keyword) {
@@ -34,7 +36,7 @@ export class UIDialogs {
             '云':   { variants: { '少云': {}, '多云': {}, '阴天': {} } },
             '风':   { variants: { '微风': {}, '大风': {}, '狂风': {} } },
             '雨':   { variants: { '小雨': {}, '中雨': {}, '大雨': {}, '暴雨': { addons: { '雷电': {} } } } },
-            '雪':   { variants: { '小雪': {}, '中雪': {}, '大雪': {}, '暴雪': {} } },
+            '雪':   { variants: { '小雪': {}, '中雪': {}, '大雪': {}, '暴雨': {} } },
             '特殊': { variants: { '樱花雨': {}, '起雾': {}, '烟花': {} } }
         };
 
@@ -453,7 +455,7 @@ export class UIDialogs {
         }
     }
 
-    createDialog(title, content, buttons) {
+    createDialog(title, content, buttons, options = {}) {
         // 从timeGradient服务获取当前一致的主题
         const data = this.state.latestWorldStateData || {};
         const theme = this.timeGradient.getThemeForTime({
@@ -463,14 +465,18 @@ export class UIDialogs {
         });
         const themeClass = theme.brightness === 'light' ? 'theme-light-text' : 'theme-dark-text';
 
+        const dialogClass = options.isMap ? 'tw-advanced-map-modal' : 'ws-dialog';
+
         // 创建dialog并应用正确的class
-        const dialog = this.$(`<div class="ws-dialog-overlay ${themeClass}"><div class="ws-dialog"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
+        const dialog = this.$(`<div class="ws-dialog-overlay ${themeClass}"><div class="${dialogClass}"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
         
         // 将动态背景也应用到dialog上
-        dialog.find('.ws-dialog').css('background', theme.background);
+        dialog.find(`.${dialogClass}`).css('background', theme.background);
 
         dialog.find(".dialog-content").append(content);
-        dialog.find(".dialog-buttons-wrapper").append(buttons);
+        if (buttons) {
+            dialog.find(".dialog-buttons-wrapper").append(buttons);
+        }
         this.$("body").append(dialog);
         dialog.on("click", (event) => {
             if (this.$(event.target).hasClass("ws-dialog-overlay")) {
@@ -490,5 +496,123 @@ export class UIDialogs {
                 overlay.remove();
             }, 300);
         }
+    }
+
+    showMapEditorToolbox($container) {
+        this.hideMapEditorToolbox(); // Ensure no duplicates
+
+        const $toolbox = this.$(`
+            <div class="tw-map-editor-toolbox">
+                <div class="tw-toolbox-header">
+                    <button id="tw-create-node-btn" class="has-ripple">+ 创建新节点</button>
+                </div>
+                <div class="tw-toolbox-body">
+                    <div class="tw-node-list-container">
+                        <ul class="tw-map-node-tree"></ul>
+                    </div>
+                    <div class="tw-map-node-editor hidden">
+                         <div class="tw-editor-field">
+                            <label for="node-id">ID (不可更改)</label>
+                            <input type="text" id="node-id" readonly>
+                        </div>
+                        <div class="tw-editor-field">
+                            <label for="node-name">名称</label>
+                            <input type="text" id="node-name" data-prop="name">
+                        </div>
+                        <div class="tw-editor-field">
+                            <label for="node-parent">父节点ID (留空则为顶级节点)</label>
+                            <input type="text" id="node-parent" data-prop="parentId">
+                        </div>
+                        <div class="tw-editor-field">
+                            <label for="node-type">类型 (例如: region, city)</label>
+                            <input type="text" id="node-type" data-prop="type">
+                        </div>
+                        <div class="tw-editor-field coords-field">
+                            <label for="node-coords">坐标 (x,y)</label>
+                            <div class="coords-input-wrapper">
+                                <input type="text" id="node-coords" data-prop="coords" placeholder="未设置">
+                                <button class="tw-clear-coords-btn has-ripple" title="清除坐标">✖</button>
+                            </div>
+                        </div>
+                        <div class="tw-editor-field">
+                            <label for="node-desc">描述</label>
+                            <textarea id="node-desc" data-prop="description"></textarea>
+                        </div>
+                        <div class="tw-editor-field">
+                            <label for="node-status">状态</label>
+                            <select id="node-status" data-prop="status">
+                                <option value="">无</option>
+                                <option value="safe">安全</option>
+                                <option value="danger">危险</option>
+                                <option value="quest">任务</option>
+                                <option value="cleared">已肃清</option>
+                                <option value="locked">已锁定</option>
+                            </select>
+                        </div>
+                        <div class="tw-map-editor-footer">
+                            <button class="tw-delete-node-btn has-ripple">删除节点</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        $container.prepend($toolbox);
+        this._renderAndAttachNodeTree($toolbox.find('.tw-map-node-tree'));
+    }
+
+    hideMapEditorToolbox() {
+        this.$('.tw-map-editor-toolbox').remove();
+    }
+    
+    _renderAndAttachNodeTree($treeContainer) {
+        $treeContainer.empty();
+        const { nodes } = this.mapSystem.mapDataManager;
+        const nodeMap = new Map(Array.from(nodes.values()).map(node => [node.id, { ...node, children: [] }]));
+        const roots = [];
+
+        nodeMap.forEach(node => {
+            if (node.parentId && nodeMap.has(node.parentId)) {
+                nodeMap.get(node.parentId).children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
+
+        const buildTreeHtml = (nodeList, depth) => {
+            let html = '';
+            nodeList.sort((a, b) => a.name.localeCompare(b.name));
+            nodeList.forEach(node => {
+                html += `<li class="tw-map-node-tree-item" data-node-id="${node.id}" style="--depth: ${depth};">${node.name}</li>`;
+                if (node.children.length > 0) {
+                    html += buildTreeHtml(node.children, depth + 1);
+                }
+            });
+            return html;
+        };
+
+        $treeContainer.html(buildTreeHtml(roots, 0));
+    }
+
+    populateToolboxEditor(nodeId) {
+        const $editor = this.$('.tw-map-node-editor');
+        if (!$editor.length) return;
+        
+        const node = this.mapSystem.mapDataManager.nodes.get(nodeId);
+        if (!node) {
+            $editor.addClass('hidden');
+            return;
+        }
+
+        $editor.removeClass('hidden');
+        $editor.data('current-node-id', nodeId); // Store current node ID
+
+        $editor.find('#node-id').val(node.id);
+        $editor.find('#node-name').val(node.name || '');
+        $editor.find('#node-parent').val(node.parentId || '');
+        $editor.find('#node-type').val(node.type || '');
+        $editor.find('#node-coords').val(node.coords || '');
+        $editor.find('#node-desc').val(node.description || '');
+        $editor.find('#node-status').val(node.status || '');
     }
 }

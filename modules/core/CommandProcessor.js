@@ -3,8 +3,9 @@
  * @description Executes parsed commands by dispatching them to the correct managers.
  */
 export class CommandProcessor {
-    constructor({ audioManager, logger }) {
+    constructor({ audioManager, mapSystem, logger }) {
         this.audioManager = audioManager;
+        this.mapSystem = mapSystem;
         this.logger = logger;
     }
 
@@ -18,10 +19,20 @@ export class CommandProcessor {
 
             if (module === 'FX') {
                 this._handleFxCommand(func, args);
+            } else if (module === 'Map') {
+                this._handleMapCommand(command);
             } else {
                 this.logger.warn(`Unknown command module: ${module}`);
             }
         });
+    }
+
+    _handleMapCommand(command) {
+        if (this.mapSystem && this.mapSystem.commandHandler) {
+            this.mapSystem.commandHandler.executeCommand(command);
+        } else {
+            this.logger.error('MapSystem command handler not available in CommandProcessor.');
+        }
     }
 
     _handleFxCommand(func, args) {

@@ -17,6 +17,7 @@ export const TheWorldState = {
     panelLeft: null,
     buttonTop: 10,
     buttonLeft: null,
+    liteMapPathStack: [], // NEW: For lite map navigation state
 
     // --- Settings State ---
     activeSkyThemeId: 'default', // NEW: To store the selected sky theme
@@ -30,6 +31,8 @@ export const TheWorldState = {
     celestialFxEnabled: true,
     isSkygazingModeActive: false,
     hasLoadedBefore: false,
+    fontSize: '14px',
+    mapMode: 'advanced', // 'lite' or 'advanced'
 
     // --- Audio Settings ---
     isAudioEnabled: true,

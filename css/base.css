@@ -1,6 +1,16 @@
 /**
- * The World - Base Panel & UI Styles
+ * The World - Base UI Stylesheet
+ *
+ * This file contains the core panel and layout styles.
+ * Other styles have been moved to:
+ * - dialogs.css: For all popup modals.
+ * - panes.css: For content within each tab.
+ * - utils.css: For utilities and keyframe animations.
  */
+
+/* ==========================================================================
+   1. CORE PANEL & LAYOUT
+   ========================================================================== */
 
 #the_world-toggle-btn {
     position: fixed;
@@ -14,20 +24,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* font-size: 20px; Removed emoji-specific style */
     cursor: move;
     z-index: 9998;
     border: 1px solid #4a5568;
     -webkit-user-select: none;
     user-select: none;
-    transition: transform .3s ease-in-out, box-shadow .3s ease-in-out; /* Added box-shadow transition */
-    overflow: hidden; /* Contain animations */
+    transition: transform .3s ease-in-out, box-shadow .3s ease-in-out;
+    overflow: hidden;
 }
 #the_world-toggle-btn:hover {
     transform: scale(1.1)
 }
-
-/* NEW: Background layers for toggle button animation */
 #the_world-toggle-btn .tw-bg-layer-1,
 #the_world-toggle-btn .tw-bg-layer-2 {
     position: absolute;
@@ -40,9 +47,23 @@
     background-size: cover;
     background-position: center;
 }
+#the_world-toggle-btn .long-press-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(102, 252, 241, 0.4);
+    transform-origin: bottom;
+    transform: scaleY(0);
+    transition: transform 5s linear;
+    pointer-events: none;
+    border-radius: inherit;
+}
+#the_world-toggle-btn.long-press-active .long-press-indicator {
+    transform: scaleY(1);
+}
 
-
-/* --- New: Fullscreen FX Layer --- */
 #the_world-fx-layer {
     position: fixed;
     top: 0;
@@ -50,11 +71,9 @@
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: 10000; /* REVERTED: Placed on top of all UI */
+    z-index: 10000;
     overflow: hidden;
 }
-
-/* NEW: Dedicated Background FX Layer */
 #the_world-fx-layer-bg {
     position: fixed;
     top: 0;
@@ -62,13 +81,13 @@
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: -1; /* Placed behind all UI */
+    z-index: -1;
     overflow: hidden;
 }
 
-
 .tw-panel {
     font-family: sans-serif;
+    font-size: var(--tw-font-size, 14px);
     position: fixed;
     top: 60px;
     width: 450px;
@@ -89,6 +108,7 @@
 .tw-panel.panel-blur-on .tw-theme-layers {
     filter: blur(var(--rain-blur));
 }
+
 .tw-header {
     padding: 10px 15px;
     background-color: var(--header-bg);
@@ -130,6 +150,7 @@
     background: rgba(0, 0, 0, 0.2);
     transform: scale(1.2);
 }
+
 .tw-tabs {
     display: flex;
     background-color: rgba(0, 0, 0, .1);
@@ -157,11 +178,11 @@
     background-color: var(--header-bg);
     color: var(--text-main)
 }
+
 .tw-content {
     flex-grow: 1;
     position: relative;
     z-index: 1;
-    /* overflow: hidden; */ /* This was preventing pane scrolling on mobile */
 }
 .tw-pane {
     position: absolute;
@@ -171,21 +192,21 @@
     bottom: 0;
     padding: 15px;
     overflow-y: auto;
-    touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+    touch-action: pan-y;
     opacity: 0;
     transform: translateY(10px);
     transition: opacity .3s ease-in-out, transform .3s ease-in-out;
     pointer-events: none;
+}
+#map-nav-pane {
+    padding: 0;
 }
 .tw-pane.active {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
 }
-.tw-notice {
-    text-align: center;
-    color: var(--text-secondary)
-}
+
 .tw-resize-handle {
     position: absolute;
     bottom: 0;
@@ -195,1006 +216,4 @@
     cursor: nwse-resize;
     z-index: 10;
     background-image: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, .3) 40%, rgba(255, 255, 255, .3) 60%, transparent 60%), linear-gradient(135deg, transparent 70%, rgba(255, 255, 255, .3) 70%)
-}
-.has-ripple {
-    position: relative;
-    overflow: hidden
-}
-.ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, .3);
-    transform: scale(0);
-    animation: ripple-effect .6s linear
-}
-@keyframes ripple-effect {
-    to {
-        transform: scale(4);
-        opacity: 0
-    }
-}
-.locations_container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px
-}
-.location_card {
-    position: relative;
-    background: #3a3f47;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    text-align: center;
-    min-height: 80px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1), box-shadow 0.3s cubic-bezier(0.42, 0, 0.58, 1);
-}
-.location_card:hover {
-    transform: translateY(-5px);
-    border-color: #8c9fb8;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .35)
-}
-.location_card:active {
-    transform: translateY(-2px) scale(0.98);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
-}
-.sub_locations_container {
-    background-color: rgba(0, 0, 0, .15);
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 10px
-}
-.location_card.has-bg {
-    color: #fff;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, .8);
-    background-size: cover;
-    background-position: center
-}
-.location_card.has-bg::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, .5);
-    border-radius: 8px
-}
-.location_card.has-bg:hover::before {
-    background-color: rgba(0, 0, 0, .3)
-}
-.location_card.selected {
-    border-color: #a0c4ff;
-    box-shadow: 0 0 12px #a0c4ff;
-    background-color: #4a5568
-}
-.travel_time {
-    position: absolute;
-    top: 4px;
-    left: 6px;
-    font-size: 10px;
-    color: #ccc;
-    background-color: rgba(0, 0, 0, .5);
-    padding: 1px 4px;
-    border-radius: 4px
-}
-.location_echo {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    cursor: help;
-    font-size: 12px;
-    text-shadow: 0 0 3px #000
-}
-.location_name {
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    position: relative;
-    z-index: 2
-}
-.location_icon,
-.npc_icon {
-    font-size: 1.2em
-}
-.characters_list {
-    margin-top: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: center;
-    position: relative;
-    z-index: 2
-}
-.character_name {
-    background: rgba(0, 0, 0, .6);
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 11px
-}
-.character_name.interactive {
-    cursor: pointer;
-    transition: all .2s
-}
-.character_name.interactive:hover {
-    background: rgba(0, 0, 0, .8);
-    color: #fff
-}
-.character_name.interactive:active {
-    transform: scale(.95) translateY(0);
-    opacity: .8
-}
-.map_action_area {
-    display: flex;
-    justify-content: center;
-    padding-top: 15px;
-    border-top: 1px solid var(--border-color);
-    margin-top: 15px
-}
-.go_button {
-    background-color: #738c82;
-    color: #fff;
-    border: none;
-    border-radius: 30px;
-    padding: 8px 25px;
-    font-size: 14px;
-    cursor: pointer
-}
-.go_button.disabled {
-    opacity: .5;
-    cursor: not-allowed;
-    background-color: #4a5568
-}
-.ws-primary-info,
-.ws-secondary-info {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px
-}
-.ws-primary-info {
-    padding-bottom: 8px
-}
-.ws-separator {
-    border: none;
-    height: 1px;
-    background-color: var(--border-color);
-    margin: 8px 0
-}
-.ws-info-block {
-    border: 1px solid var(--border-color);
-    border-radius: 20px; /* More rounded like a bubble */
-    padding: 8px 15px; /* Adjust padding for a better look */
-    font-size: 13px;
-    flex-grow: 1;
-    background-color: rgba(0, 0, 0, .2);
-    backdrop-filter: blur(1px);
-    display: flex;
-    align-items: center;
-    gap: 8px; /* Add gap between icon and text */
-}
-.ws-info-block .ws-label {
-    margin-right: 8px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    white-space: nowrap
-}
-.ws-info-block .ws-value {
-    word-break: break-all;
-    font-size: 90%
-}
-.ws-scene-block {
-    width: 100%;
-    display: block
-}
-.ws-scene-block .ws-value {
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin-top: 4px;
-    font-size: 100%
-}
-.ws-illustration-item {
-    width: 100%;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border-color)
-}
-.ws-illustration-item img {
-    max-width: 100%;
-    border-radius: 6px;
-    display: block;
-    margin: 4px auto 0
-}
-.ws-interactive-keyword {
-    color: #fff;
-    background-color: rgba(135, 206, 250, 0.5);
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-weight: 700;
-    text-decoration: none;
-    font-size: 95%;
-    cursor: pointer;
-}
-.ws-time-interact,
-.ws-weather-interact {
-    cursor: pointer;
-    border-radius: 8px;
-    padding: 8px;
-    transition: background-color 0.2s;
-}
-.ws-time-interact:hover,
-.ws-weather-interact:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-.settings-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-color)
-}
-.settings-item:last-child {
-    border-bottom: none;
-}
-.settings-item-text {
-    flex-grow: 1;
-}
-.settings-item-text h4 {
-    margin: 0 0 4px 0;
-    font-size: 1em;
-    font-weight: bold;
-    color: var(--text-main);
-}
-.settings-item-text p {
-    margin: 0;
-    font-size: 0.85em;
-    color: var(--text-secondary);
-}
-
-/* Fixed Toggle Switch CSS with higher specificity */
-.tw-panel .settings-item .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 28px
-}
-.tw-panel .settings-item .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0
-}
-.tw-panel .settings-item .toggle-switch label {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 28px
-}
-.tw-panel .settings-item .toggle-switch label:before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 4px;
-    bottom: 4px;
-    background-color: #fff;
-    transition: .4s;
-    border-radius: 50%
-}
-.tw-panel .settings-item .toggle-switch input:checked+label {
-    background-color: #2196f3
-}
-.tw-panel .settings-item .toggle-switch input:checked+label:before {
-    transform: translateX(22px)
-}
-/* End of Toggle Switch Fix */
-.clear-data-btn {
-    border: 1px solid #c0392b;
-    background-color: transparent;
-    color: #e74c3c;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer
-}
-#reset-ui-btn {
-    border-color: #3498db;
-    color: #3498db;
-}
-.ws-dialog-buttons button,
-.ws-dialog-actions button,
-.clear-data-btn,
-.go_button {
-    position: relative;
-    overflow: hidden;
-}
-.ws-dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, .7);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: flex-start; /* Align to top on mobile */
-    justify-content: center;
-    padding-top: 5vh; /* Add some space from the top */
-    z-index: 10001;
-    animation: fadeIn .3s ease-in-out
-}
-.ws-dialog-overlay.closing {
-    animation: fadeOut .3s ease-in-out forwards
-}
-
-/* UPDATED: Dialog styles to use CSS variables for theming */
-.ws-dialog-overlay {
-    --dialog-bg: rgba(45, 55, 72, 0.95);
-    --dialog-text: #e2e8f0;
-    --dialog-border: #4a5568;
-    --dialog-header-border: #4a5568;
-    --dialog-input-bg: #2d3748;
-    --dialog-input-border: #4a5568;
-    --dialog-button-bg: #4a5568;
-    --dialog-button-text: #e2e8f0;
-    --dialog-button-hover-bg: #718096;
-    --dialog-button-primary-bg: #738c82;
-    --dialog-button-primary-text: #fff;
-    --dialog-button-primary-hover-bg: #8aa69a;
-}
-.ws-dialog-overlay.theme-light-text {
-    --dialog-bg: rgba(240, 245, 250, 0.95);
-    --dialog-text: #1A202C;
-    --dialog-border: #d4e6f1;
-    --dialog-header-border: #d4e6f1;
-    --dialog-input-bg: #fff;
-    --dialog-input-border: #cbd5e0;
-    --dialog-button-bg: #e2e8f0;
-    --dialog-button-text: #2d3748;
-    --dialog-button-hover-bg: #cbd5e0;
-    --dialog-button-primary-bg: #4a90e2;
-    --dialog-button-primary-text: #fff;
-    --dialog-button-primary-hover-bg: #357abd;
-}
-.ws-dialog {
-    background: var(--dialog-bg);
-    padding: 20px;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 550px; /* Increased width for new UI */
-    border: 1px solid var(--dialog-border);
-    color: var(--dialog-text);
-    animation: scaleIn .3s ease-in-out;
-    backdrop-filter: blur(8px);
-}
-.ws-dialog h3,
-.ws-dialog h4 {
-    margin-top: 0;
-    border-bottom: 1px solid var(--dialog-header-border);
-    color: var(--dialog-text);
-    padding-bottom: 10px;
-    font-size: 16px;
-    margin-bottom: 10px
-}
-.ws-dialog textarea, 
-.ws-dialog input[type="text"], 
-.ws-dialog input[type="number"] {
-    background: var(--dialog-input-bg);
-    border: 1px solid var(--dialog-input-border);
-    color: var(--dialog-text);
-    border-radius: 6px;
-    padding: 8px 5px;
-    box-sizing: border-box;
-}
-.ws-dialog textarea {
-    width: 100%; height: 80px; margin-top: 10px;
-}
-.ws-dialog-overlay.closing .ws-dialog {
-    animation: scaleOut .3s ease-in-out forwards
-}
-.ws-dialog-buttons,
-.ws-dialog-actions {
-    margin-top: 15px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px
-}
-.ws-dialog-actions {
-    flex-wrap: wrap;
-    justify-content: center
-}
-.ws-dialog-actions button {
-    flex-grow: 1;
-    min-width: 45%
-}
-.ws-dialog-buttons button,
-.ws-dialog-actions button {
-    border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    background-color: var(--dialog-button-bg);
-    color: var(--dialog-button-text);
-    transition: background-color .2s
-}
-.ws-dialog-buttons button.dialog_cancel {
-    background-color: transparent;
-    border: 1px solid var(--dialog-button-bg);
-}
-.ws-dialog-buttons button:hover,
-.ws-dialog-actions button:hover {
-    background-color: var(--dialog-button-hover-bg);
-}
-.ws-dialog-buttons .dialog_confirm {
-    background: var(--dialog-button-primary-bg);
-    color: var(--dialog-button-primary-text);
-}
-.ws-dialog-buttons .dialog_confirm:hover {
-    background: var(--dialog-button-primary-hover-bg);
-}
-.ws-dialog-separator {
-    border: none;
-    height: 1px;
-    background-color: var(--dialog-header-border);
-    margin: 15px 0
-}
-.ws-time-inputs {
-    display: grid;
-    grid-template-columns: 1.5fr auto 1fr auto 1fr auto .8fr auto .8fr;
-    gap: 5px;
-    align-items: center
-}
-.ws-time-inputs input {
-    text-align: center;
-    width: 100%;
-    min-width: 30px
-}
-.ws-time-inputs span {
-    text-align: center;
-    font-weight: 700;
-    padding: 0 2px
-}
-.ws-weekday-buttons {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px
-}
-.ws-weekday-buttons button {
-    background-color: var(--dialog-input-bg);
-    border: 1px solid var(--dialog-input-border);
-    padding: 8px 0
-}
-.ws-weekday-buttons button:hover {
-    background-color: var(--dialog-button-hover-bg);
-}
-.tw-panel.is-dragging {
-    transform: none !important;
-}
-.tw-panel .tw-tabs,
-.tw-panel .tw-content,
-.tw-panel .tw-resize-handle {
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-}
-.tw-panel {
-    transform: translateX(0) translateY(0);
-}
-.tw-panel.narrow-layout .ws-info-block {
-    flex-direction: column;
-    align-items: flex-start;
-}
-.tw-panel.narrow-layout .ws-info-block .ws-label {
-    margin-bottom: 4px;
-}
-.tw-panel.narrow-layout .locations_container {
-    grid-template-columns: 1fr;
-}
-@media (max-width: 480px) {
-    .tw-panel {
-        width: calc(100% - 20px) !important;
-        height: 70vh !important;
-        top: 10px;
-        left: 10px;
-        right: 10px;
-    }
-    .tw-panel.minimized {
-        width: calc(100% - 20px) !important;
-        min-width: unset;
-        left: 10px !important;
-        right: 10px !important;
-    }
-    .tw-panel:not(.minimized) {
-        /* display: flex !important; */ /* This was overriding the hide() functionality */
-    }
-    .tw-tab-link {
-        font-size: 13px;
-        padding: 8px 4px;
-    }
-    .ws-dialog {
-        width: 95%;
-        padding: 15px;
-        max-height: 80vh;
-        overflow-y: auto
-    }
-    .ws-dialog h3,
-    .ws-dialog h4 {
-        font-size: 14px
-    }
-    .ws-time-inputs {
-        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr))
-    }
-    .ws-weekday-buttons {
-        grid-template-columns: repeat(4, 1fr)
-    }
-    .ws-dialog-actions button {
-        min-width: 100px
-    }
-}
-@keyframes fadeIn {
-    from {
-        opacity: 0
-    }
-    to {
-        opacity: 1
-    }
-}
-@keyframes fadeOut {
-    from {
-        opacity: 1
-    }
-    to {
-        opacity: 0
-    }
-}
-@keyframes scaleIn {
-    from {
-        opacity: 0;
-        transform: scale(.95)
-    }
-    to {
-        opacity: 1;
-        transform: scale(1)
-    }
-}
-@keyframes scaleOut {
-    from {
-        opacity: 1;
-        transform: scale(1)
-    }
-    to {
-        opacity: 0;
-        transform: scale(.95)
-    }
-}
-/**
- * Inspired by animated-weather-cards
- */
-
-.ws-details {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    padding: 10px 15px;
-    color: var(--text-main);
-    transition: color 0.5s ease;
-    align-items: center; /* Vertically align items */
-    gap: 15px;
-}
-
-.ws-right {
-    text-align: right;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end; /* Align to the right */
-    gap: 4px;
-}
-
-.ws-summary {
-    font-weight: 600;
-    font-size: 18px;
-}
-
-.ws-weather-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.ws-date {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.ws-content-inner {
-    padding: 0 15px 15px 15px;
-}
-
-.ws-time-display {
-    display: flex;
-    flex-direction: column;
-    line-height: 1;
-}
-
-.ws-time-main {
-    font-size: 50px;
-    font-weight: 300;
-}
-
-.ws-time-main span {
-    font-size: 22px;
-}
-/* New: Seconds display */
-.tw-time-animator-seconds {
-    font-size: 22px;
-    opacity: 0.7;
-}
-
-
-.ws-time-secondary {
-    margin-top: 5px;
-    color: var(--text-secondary);
-}
-
-.ws-date-full {
-    font-size: 14px;
-    letter-spacing: 1px;
-}
-.ws-date-full-single {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.ws-weekday {
-    font-size: 12px;
-    margin-top: 2px;
-}
-
-.ws-right .ws-summary {
-     font-size: 18px;
-     font-weight: 600;
-}
-
-.ws-right .ws-date {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-/* New Theme Chooser Styles */
-.theme-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-bottom: 15px; /* Add some padding at the bottom */
-}
-
-.theme-card {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 12px;
-    border-radius: 8px;
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-
-.theme-card.active {
-    border-color: #3498db;
-    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
-}
-
-.theme-card h4 {
-    margin: 0 0 4px 0;
-    font-size: 1em;
-    font-weight: bold;
-    color: var(--text-main);
-}
-.theme-card p {
-    margin: 0;
-    font-size: 0.8em;
-    color: var(--text-secondary);
-}
-
-.theme-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.theme-actions button {
-    flex-grow: 1;
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: none;
-    background: #4a5568;
-    color: #fff;
-    font-weight: 600;
-    font-size: 13px;
-    transition: background-color 0.2s;
-}
-.theme-actions button:hover {
-    background-color: #6c7a89;
-}
-.theme-actions .btn-preview {
-    background-color: transparent;
-    border: 1px solid #4a5568;
-}
-.theme-actions .btn-preview:hover {
-     background-color: rgba(255, 255, 255, 0.1);
-}
-
-.theme-card.active .btn-activate {
-    background: #2196f3;
-    cursor: default;
-}
-
-/* Theme Preview Dialog */
-.theme-preview-container {
-    display: flex;
-    height: 150px;
-    width: 100%;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-top: 15px;
-    border: 1px solid #4a4e56;
-}
-
-.theme-gradient-strip {
-    flex-grow: 1;
-    height: 100%;
-    position: relative;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 8px;
-    box-sizing: border-box;
-}
-
-.theme-gradient-strip .time-label {
-    font-size: 10px;
-    color: white;
-    text-shadow: 1px 1px 2px black;
-    opacity: 0.7;
-}
-
-/* NEW: Long press indicator for Skygazing Mode */
-#the_world-toggle-btn .long-press-indicator {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(102, 252, 241, 0.4);
-    transform-origin: bottom;
-    transform: scaleY(0);
-    transition: transform 5s linear;
-    pointer-events: none;
-    border-radius: inherit;
-}
-#the_world-toggle-btn.long-press-active .long-press-indicator {
-    transform: scaleY(1);
-}
-
-/* NEW: Calendar and Clock Styles */
-.tw-time-control-container {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    user-select: none;
-}
-.tw-calendar-container {
-    flex: 1;
-}
-.tw-calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-.tw-calendar-header button {
-    background: transparent;
-    border: none;
-    color: var(--dialog-text);
-    font-size: 1.5em;
-    cursor: pointer;
-}
-.tw-calendar-header input {
-    width: 60px;
-    text-align: center;
-}
-.tw-calendar-header span {
-    font-weight: bold;
-}
-.tw-calendar table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: center;
-}
-.tw-calendar th {
-    padding: 5px;
-    font-size: 0.8em;
-    color: var(--text-secondary);
-}
-.tw-calendar td {
-    padding: 8px 5px;
-    cursor: pointer;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-}
-.tw-calendar td:hover {
-    background-color: var(--dialog-button-hover-bg);
-}
-.tw-calendar td.other-month {
-    color: #555;
-}
-.tw-calendar td.selected {
-    background-color: var(--dialog-button-primary-bg);
-    color: var(--dialog-button-primary-text);
-    font-weight: bold;
-}
-.tw-clock-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-}
-.tw-clock-container {
-    position: relative;
-    width: 150px;
-    height: 150px;
-}
-.tw-clock {
-    width: 100%;
-    height: 100%;
-    border: 3px solid var(--dialog-border);
-    border-radius: 50%;
-    position: relative;
-}
-.tw-clock-hand {
-    position: absolute;
-    bottom: 50%;
-    left: 50%;
-    transform-origin: bottom;
-    background-color: var(--dialog-text);
-    border-radius: 2px;
-}
-.tw-hour-hand {
-    width: 4px;
-    height: 35%;
-    margin-left: -2px;
-    cursor: pointer;
-}
-.tw-minute-hand {
-    width: 2px;
-    height: 45%;
-    margin-left: -1px;
-    cursor: pointer;
-}
-.tw-second-hand {
-    width: 1px;
-    height: 48%;
-    margin-left: -0.5px;
-    background-color: #e53e3e; /* A contrasting red */
-    z-index: 2;
-    transition: transform 0.2s cubic-bezier(0.4, 1.3, 0.6, 1);
-}
-.tw-clock-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 8px;
-    height: 8px;
-    background-color: var(--dialog-text);
-    border: 2px solid var(--dialog-bg);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 3;
-}
-.tw-digital-time {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.tw-digital-time input {
-    width: 45px;
-    padding: 5px;
-    text-align: center;
-    font-size: 1.2em;
-}
-.tw-digital-time span {
-    font-size: 1.2em;
-    font-weight: bold;
-}
-/* Hide number input spinners */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type=number] {
-  -moz-appearance: textfield;
-}
-
-/* NEW: Weather Scroller styles */
-.tw-weather-scroller-container {
-    display: flex;
-    justify-content: space-between;
-    height: 150px; /* 3 items * 50px height */
-    position: relative;
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
-    padding: 0 10px;
-}
-.tw-weather-scroller-highlight {
-    position: absolute;
-    top: 50px;
-    left: 0;
-    right: 0;
-    height: 50px;
-    background: rgba(255, 255, 255, 0.08);
-    border-top: 1px solid var(--dialog-border);
-    border-bottom: 1px solid var(--dialog-border);
-    z-index: 0;
-    pointer-events: none;
-    border-radius: 8px;
-}
-.tw-weather-scroller-column {
-    flex: 1;
-    position: relative;
-    touch-action: pan-y;
-    user-select: none;
-}
-.tw-weather-scroller-column.grabbing,
-.tw-weather-scroller-column.grabbing * {
-    cursor: grabbing !important;
-}
-.tw-weather-scroller-list {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    transition: transform 0.2s ease-out;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-}
-.tw-weather-scroller-item {
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: grab;
-    font-size: 1em;
-    color: var(--dialog-text);
-    opacity: 0.5;
-    transition: opacity 0.2s, font-weight 0.2s;
-    background: transparent;
-    border: none;
-}
-.tw-weather-scroller-item.selected {
-    font-weight: bold;
-    opacity: 1;
-}
-.tw-weather-scroller-column.disabled .tw-weather-scroller-item {
-    opacity: 0.2;
-    cursor: default;
-}
-
-/* Mobile-specific adjustments */
-.tw-is-mobile-view #the_world-toggle-btn {
-    top: auto;
-    bottom: 15px;
-    right: 15px;
-    z-index: 10000; /* Ensure it's above most mobile UI */
-}
-
-.tw-is-mobile-view .tw-resize-handle {
-    display: none;
 }

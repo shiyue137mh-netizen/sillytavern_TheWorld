@@ -17,7 +17,7 @@ export class UIController {
         this.logger = dependencies.logger;
 
         const renderer = new UIRenderer(this.dependencies);
-        const dialogs = new UIDialogs(dependencies);
+        const dialogs = new UIDialogs({ ...dependencies, renderer });
         this.panelManager = new UIPanelManager(dependencies);
         this.timeAnimator = new TimeAnimator(dependencies);
         
@@ -41,6 +41,7 @@ export class UIController {
         this.createToggleButton();
         this.panelManager.applyInitialPanelState();
         this.eventManager.bindAllEvents();
+        this.applyFontSize();
         this.handleResize(); // Initial check
         this.logger.log('UIController 初始化完成。');
     }
@@ -76,6 +77,7 @@ export class UIController {
                 body.append($fxLayer);
             }
             this.logger.success('面板 HTML 加载并注入成功。');
+            this.applyFontSize();
         } catch (error) {
             this.logger.error('严重: 面板 HTML 加载失败:', error);
         }
@@ -88,6 +90,12 @@ export class UIController {
         // Create a container for the animated icon, instead of a simple emoji.
         const $toggleBtn = this.$('<div>').attr('id', this.config.TOGGLE_BUTTON_ID).attr('title', '仪表盘');
         $body.append($toggleBtn);
+    }
+
+    applyFontSize() {
+        if (this.state.fontSize) {
+            this.$(`#${this.config.PANEL_ID}`).css('--tw-font-size', this.state.fontSize);
+        }
     }
 
     updateAllPanes() {
@@ -112,13 +120,8 @@ export class UIController {
             $wsPane.html('<p class="tw-notice">等待世界状态数据...</p>');
         }
 
-        if (this.state.latestMapData) {
-            this.logger.log('检测到地图数据，正在渲染...');
-            this.renderer.renderMapNavigationPane($mapPane, this.state.latestMapData);
-        } else {
-            this.logger.log('无地图数据，显示等待信息。');
-            $mapPane.html('<p class="tw-notice">等待地图数据...</p>');
-        }
+        // Render the new map pane
+        this.renderer.renderMapPane($mapPane);
 
         this.renderer.renderSettingsPane($settingsPane);
         this.logger.log('所有面板内容更新完成。');

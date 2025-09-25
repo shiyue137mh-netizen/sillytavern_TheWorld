@@ -143,12 +143,7 @@ export class WeatherSystem {
         }
         
         if (this.state.weatherFxEnabled) {
-            if (isGoodWeather && !$bgFxTarget.children('.tw-bird-container').length) {
-                if (Math.random() < 0.02) { 
-                    this.logger.log('[天气系统] 正在触发飞鸟特效...');
-                    this._createBirdAnimation($bgFxTarget);
-                }
-            }
+            // Bird animation removed as per user request
             if (!isNight && isClearSky && !this.vaporTrailInstance) {
                 if (Math.random() < 0.025) { 
                     this.logger.log('[天气系统] 正在触发飞机尾迹云特效...');
@@ -188,7 +183,7 @@ export class WeatherSystem {
                 this.vaporTrailInstance.init();
                 break;
             case 'bird':
-                this._createBirdAnimation($fxTarget);
+                this.logger.warn('[Debug] Bird animation has been removed.');
                 break;
             default:
                 this.logger.warn(`[Debug] 未知的特效名称: ${effectName}`);
@@ -296,29 +291,7 @@ export class WeatherSystem {
         $fxTarget.append($container);
     }
 
-    _createBirdAnimation($fxTarget) {
-        const animationClass = `tw-fly-path--${1 + Math.floor(Math.random() * 4)}`;
-        const duration = 15 + Math.random() * 10;
-        
-        const $birdContainer = this.$('<div>')
-            .addClass('tw-bird-container')
-            .addClass(animationClass)
-            .css({
-                'top': `${10 + Math.random() * 40}%`,
-                'animation-duration': `${duration}s`
-            });
-            
-        const $bird = this.$('<div>')
-            .addClass('tw-bird')
-            .addClass(`tw-bird--${1 + Math.floor(Math.random() * 4)}`);
-            
-        $birdContainer.append($bird);
-        $fxTarget.append($birdContainer);
-        
-        setTimeout(() => {
-            $birdContainer.remove();
-        }, duration * 1000);
-    }
+    // _createBirdAnimation method removed as per user request
     
     _clearAllParticles($fxTarget) {
         const selectors = ['.particle-wrapper', '.leaf', '.star', '.firefly', '.shooting_star', '.fog-layer', '.milky-way-container'];

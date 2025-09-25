@@ -248,10 +248,7 @@ export class IntroAnimation {
                     }
                 };
                 
-                const _createBird = () => {
-                    const birdHtml = `<div class="tw-bird-container-loader"><div class="tw-bird-loader"></div></div>`;
-                    this.$('#loader-fx-bg').append(birdHtml);
-                };
+                // _createBird function removed as per user request
 
                 const _animateBg = () => {
                     if (!this.animState || !this.animState.frameId) return;
@@ -286,7 +283,7 @@ export class IntroAnimation {
                     this.$('.tw-loader-star').css('opacity', '0');
                 }, poetryFadeDuration));
                 
-                this._animationTimeouts.push(setTimeout(_createBird, poetryFadeDuration * 2));
+                // Bird animation timeout removed
                 
                 this._animationTimeouts.push(setTimeout(() => {
                     this.$('.tw-loader-poetry-container').css('opacity', 0);

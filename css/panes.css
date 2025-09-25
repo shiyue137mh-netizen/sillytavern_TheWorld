@@ -1,0 +1,78 @@
+/**
+ * The World - Panes Stylesheet
+ * Contains styles for the content within each tab of the panel.
+ */
+
+/* -- World State Pane -- */
+.ws-details { display: grid; grid-template-columns: auto 1fr auto; padding: 10px 15px; color: var(--text-main); transition: color 0.5s ease; align-items: center; gap: 15px; }
+.ws-right { text-align: right; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; gap: 4px; }
+.ws-summary { font-weight: 600; font-size: 18px; }
+.ws-date { font-size: 14px; color: var(--text-secondary); }
+.ws-weather-info { display: flex; align-items: center; gap: 8px; }
+.ws-content-inner { padding: 0 15px 15px 15px; }
+.ws-time-display { display: flex; flex-direction: column; line-height: 1; }
+.ws-time-main { font-size: 50px; font-weight: 300; }
+.ws-time-main span { font-size: 22px; }
+.tw-time-animator-seconds { font-size: 22px; opacity: 0.7; }
+.ws-time-secondary { margin-top: 5px; color: var(--text-secondary); }
+.ws-date-full { font-size: 14px; letter-spacing: 1px; }
+.ws-date-full-single { font-size: 16px; font-weight: 500; color: var(--text-secondary); }
+.ws-weekday { font-size: 12px; margin-top: 2px; }
+.ws-primary-info, .ws-secondary-info { display: flex; flex-wrap: wrap; gap: 8px }
+.ws-primary-info { padding-bottom: 8px }
+.ws-separator { border: none; height: 1px; background-color: var(--border-color); margin: 8px 0 }
+.ws-info-block { border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 13px; flex-grow: 1; background-color: rgba(0, 0, 0, .2); backdrop-filter: blur(1px); display: flex; align-items: center; gap: 8px; }
+.ws-info-block .ws-label { margin-right: 8px; font-weight: 700; color: var(--text-secondary); white-space: nowrap }
+.ws-info-block .ws-value { word-break: break-all; font-size: 90% }
+.ws-scene-block { width: 100%; display: block }
+.ws-scene-block .ws-value { white-space: pre-wrap; word-break: break-word; margin-top: 4px; font-size: 100% }
+.ws-illustration-item { width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color) }
+.ws-illustration-item img { max-width: 100%; border-radius: 6px; display: block; margin: 4px auto 0 }
+.ws-interactive-keyword { color: #fff; background-color: rgba(135, 206, 250, 0.5); border-radius: 4px; padding: 1px 5px; font-weight: 700; text-decoration: none; font-size: 95%; cursor: pointer; }
+.ws-time-interact, .ws-weather-interact { cursor: pointer; border-radius: 8px; padding: 8px; transition: background-color 0.2s; }
+.ws-time-interact:hover, .ws-weather-interact:hover { background-color: rgba(255, 255, 255, 0.05); }
+
+/* -- Settings Pane -- */
+.settings-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color) }
+.settings-item:last-child { border-bottom: none; }
+.settings-item-text { flex-grow: 1; }
+.settings-item-text h4 { margin: 0 0 4px 0; font-size: 1em; font-weight: bold; color: var(--text-main); }
+.settings-item-text p { margin: 0; font-size: 0.85em; color: var(--text-secondary); }
+.tw-panel .settings-item .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px }
+.tw-panel .settings-item .toggle-switch input { opacity: 0; width: 0; height: 0 }
+.tw-panel .settings-item .toggle-switch label { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px }
+.tw-panel .settings-item .toggle-switch label:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: #fff; transition: .4s; border-radius: 50% }
+.tw-panel .settings-item .toggle-switch input:checked+label { background-color: #2196f3 }
+.tw-panel .settings-item .toggle-switch input:checked+label:before { transform: translateX(22px) }
+.clear-data-btn { border: 1px solid #c0392b; background-color: transparent; color: #e74c3c; padding: 6px 12px; border-radius: 6px; cursor: pointer }
+#reset-ui-btn { border-color: #3498db; color: #3498db; }
+.ws-dialog-buttons button, .ws-dialog-actions button, .clear-data-btn { position: relative; overflow: hidden; }
+.theme-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 15px; }
+.theme-card { background: rgba(0, 0, 0, 0.2); padding: 12px; border-radius: 8px; border: 2px solid transparent; transition: all 0.3s ease; }
+.theme-card.active { border-color: #3498db; box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); }
+.theme-card h4 { margin: 0 0 4px 0; font-size: 1em; font-weight: bold; color: var(--text-main); }
+.theme-card p { margin: 0; font-size: 0.8em; color: var(--text-secondary); }
+.theme-actions { display: flex; gap: 8px; margin-top: 10px; }
+.theme-actions button { flex-grow: 1; padding: 8px; border-radius: 6px; cursor: pointer; border: none; background: #4a5568; color: #fff; font-weight: 600; font-size: 13px; transition: background-color 0.2s; }
+.theme-actions button:hover { background-color: #6c7a89; }
+.theme-actions .btn-preview { background-color: transparent; border: 1px solid #4a5568; }
+.theme-actions .btn-preview:hover { background-color: rgba(255, 255, 255, 0.1); }
+.theme-card.active .btn-activate { background: #2196f3; cursor: default; }
+.theme-preview-container { display: flex; height: 150px; width: 100%; border-radius: 8px; overflow: hidden; margin-top: 15px; border: 1px solid #4a4e56; }
+.theme-gradient-strip { flex-grow: 1; height: 100%; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box; }
+.theme-gradient-strip .time-label { font-size: 10px; color: white; text-shadow: 1px 1px 2px black; opacity: 0.7; }
+.tw-map-mode-switch { display: flex; background-color: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 3px; }
+.tw-map-mode-switch button { flex: 1; padding: 5px 10px; border: none; background-color: transparent; color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s ease-in-out; }
+.tw-map-mode-switch button.active { background-color: var(--header-bg); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+/* -- Lite Map Pane -- */
+.tw-lite-map-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 10px 15px; border-bottom: 1px solid var(--border-color); margin-bottom: 10px; background-color: rgba(0,0,0,0.1); }
+.tw-lite-map-breadcrumb-item { color: var(--text-secondary); cursor: pointer; }
+.tw-lite-map-breadcrumb-item:hover { color: var(--text-main); }
+.tw-lite-map-breadcrumb-item.current { font-weight: bold; color: var(--text-main); cursor: default; }
+.tw-lite-map-list { list-style: none; padding: 0; margin: 0; }
+.tw-lite-map-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+.tw-lite-map-item:hover { background-color: rgba(255, 255, 255, 0.05); }
+.tw-lite-map-item-name { display: flex; align-items: center; gap: 10px; }
+.tw-lite-map-item-icon { font-size: 1.2em; }
+.tw-lite-map-item-children-indicator { color: var(--text-secondary); }

@@ -90,9 +90,18 @@ export class TimeGradient {
         if (decimalHour !== null) {
             const definitivePeriod = periodString || this._derivePeriodFromTime(decimalHour);
             
-            if (isBadWeather && this.periodOverrides['默认恶劣天气']) {
-                const override = this.periodOverrides['默认恶劣天气'];
-                return { background: `linear-gradient(160deg, ${override.colors[0]}, ${override.colors[1]})`, brightness: override.brightness, period: definitivePeriod };
+            if (isBadWeather) {
+                const badWeatherThemes = {
+                    '夜晚': { colors: ['#1a1a1a', '#0a0a0a'], brightness: 'dark' },
+                    '黄昏': { colors: ['#3a3a5a', '#2a2a3a'], brightness: 'dark' },
+                    '日落': { colors: ['#3a3a5a', '#2a2a3a'], brightness: 'dark' },
+                    '日出': { colors: ['#3a3a5a', '#2a2a3a'], brightness: 'dark' },
+                    '黎明': { colors: ['#3a3a5a', '#2a2a3a'], brightness: 'dark' },
+                    '清晨': { colors: ['#3a3a5a', '#2a2a3a'], brightness: 'dark' },
+                    '白天': { colors: ['#6c757d', '#495057'], brightness: 'dark' }
+                };
+                const theme = badWeatherThemes[definitivePeriod] || badWeatherThemes['白天'];
+                return { background: `linear-gradient(160deg, ${theme.colors[0]}, ${theme.colors[1]})`, brightness: theme.brightness, period: definitivePeriod };
             }
 
             if (decimalHour >= 24) decimalHour %= 24;

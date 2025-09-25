@@ -3,11 +3,13 @@
  * @description Responsible for generating HTML content for the UI panes.
  */
 export class UIRenderer {
-    constructor({ $, config, state, skyThemeController }) {
+    constructor({ $, config, state, skyThemeController, mapSystem, logger }) {
         this.$ = $;
         this.config = config;
         this.state = state;
         this.skyThemeController = skyThemeController;
+        this.mapSystem = mapSystem; // For direct access to map data
+        this.logger = logger;
     }
 
     getWeatherIconHtml(weather, period) {
@@ -125,108 +127,200 @@ export class UIRenderer {
         $pane.html(contentHtml);
     }
 
-    renderMapNavigationPane($pane, mapData) {
-        if (!mapData || !Array.isArray(mapData.locations)) {
-            $pane.html('<p class="tw-notice">等待地图数据...</p>');
-            return;
+    renderMapPane($pane) {
+        $pane.empty();
+        if (this.state.mapMode === 'lite') {
+            this._renderLiteMapPane($pane);
+        } else {
+            this._renderAdvancedMapPane($pane);
         }
-
-        if (mapData.moveBlock) {
-            $pane.append('<div class="move_block_notice">当前故事不允许自由移动</div>');
-        }
-
-        const $mainLocations = this.$('<div class="locations_container main_locations"></div>');
-        mapData.locations.forEach(location => {
-            $mainLocations.append(this.createLocationCard(location).addClass('main_location'));
-        });
-        $pane.append($mainLocations);
-
-        mapData.locations.forEach(location => {
-            const $subContainer = this.$(`<div class="locations_container sub_locations_container" data-main="${location.name}" style="display:none;"></div>`);
-            if (Array.isArray(location.subLocations)) {
-                location.subLocations.forEach(subLocation => {
-                    $subContainer.append(this.createLocationCard(subLocation).addClass('sub_location'));
-                });
-            }
-            $pane.append($subContainer);
-        });
-
-        $pane.append(this.$('<div class="map_action_area"><button class="go_button disabled has-ripple">前往</button></div>'));
     }
 
-    createLocationCard(locationData) {
-        const $card = this.$(`<div class="location_card" data-name="${locationData.name}"></div>`);
-        if (locationData.bg) {
-            $card.addClass("has-bg").css("background-image", `url(${this.config.IMAGE_BASE_URL}${locationData.bg})`);
+    _renderAdvancedMapPane($pane) {
+        const { mapDataManager } = this.mapSystem;
+
+        const $mapContent = this.$('<div id="tw-advanced-map-content"></div>');
+        $pane.append($mapContent);
+        
+        const $editButton = this.$('<button id="tw-map-edit-toggle-btn" class="has-ripple">编辑地图 ✏️</button>');
+        $mapContent.append($editButton);
+
+        if (!mapDataManager.isInitialized()) {
+             const $placeholder = this.$(`
+                <div class="tw-map-placeholder">
+                    <p class="tw-notice">当前角色没有地图档案。</p>
+                    <button id="tw-create-map-placeholder-btn" class="tw-create-map-button has-ripple">
+                        <span class="button-icon">🗺️</span> 创建地图档案
+                    </button>
+                    <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
+                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
+                    </p>
+                </div>`);
+             $mapContent.append($placeholder);
+             return;
         }
-        if (locationData.travelTime) {
-            $card.append(`<div class="travel_time">⏱️ ${locationData.travelTime}</div>`);
+
+        const $viewport = this.$('<div class="tw-map-viewport"></div>');
+        const $canvas = this.$('<div class="tw-map-canvas"></div>');
+        
+        // Check for a global map image from a root node
+        const rootNodeWithMap = Array.from(mapDataManager.nodes.values()).find(node => !node.parentId && node.mapImage);
+        if (rootNodeWithMap) {
+            const imageUrl = `${this.config.IMAGE_BASE_URL}${rootNodeWithMap.mapImage}`;
+            $canvas.css('background-image', `url(${imageUrl})`);
+            this.logger.log(`[UIRenderer] Applied map background: ${imageUrl}`);
         }
-        if (locationData.description) {
-            $card.append(`<div class="location_echo" title="${locationData.description}">👁️</div>`);
-        }
-        let icon = '';
-        for (const emoji in this.config.LOCATION_KEYWORD_ICONS) {
-            if (this.config.LOCATION_KEYWORD_ICONS[emoji].some(keyword => locationData.name.includes(keyword))) {
-                icon = `<span class="location_icon">${emoji}</span>`;
-                break;
-            }
-        }
-        $card.append(`<div class="location_name">${icon}${locationData.name}</div>`);
-        if (locationData.characters && locationData.characters.length > 0) {
-            const $charList = this.$('<div class="characters_list"></div>');
-            locationData.characters.forEach(char => {
-                let charIcon = '';
-                for (const emoji in this.config.NPC_KEYWORD_ICONS) {
-                    if (this.config.NPC_KEYWORD_ICONS[emoji].some(keyword => char.name.includes(keyword))) {
-                        charIcon = `<span class="npc_icon">${emoji}</span>`;
-                        break;
-                    }
+
+        const $svgLayer = this.$(`<svg class="tw-map-lines-svg"></svg>`);
+        const $sidebar = this.$('<div class="tw-map-sidebar"><h4>孤立节点</h4><p style="font-size:0.8em; opacity:0.7; padding: 0 10px;">拖拽到地图上以设置坐标。</p></div>');
+        const $sidebarList = this.$('<ul class="tw-sidebar-list"></ul>');
+        
+        let hasUnplottedNodes = false;
+        
+        mapDataManager.nodes.forEach(node => {
+            if (node.coords) {
+                const [x, y] = node.coords.split(',').map(Number);
+                const $pin = this.$('<div>')
+                    .addClass('tw-map-pin')
+                    .attr('data-node-id', node.id)
+                    .css({ left: `${x / 10}%`, top: `${y / 10}%` });
+                
+                if (node.parentId && mapDataManager.nodes.has(node.parentId)) {
+                    $pin.addClass('is-child-node');
+                } else {
+                    $pin.addClass('is-parent-node');
                 }
-                const $charName = this.$(`<span class="character_name interactive" data-name="${char.name}" title="${char.action || ''}">${charIcon}${char.name}</span>`);
-                $charList.append($charName);
-            });
-            $card.append($charList);
+
+                const $pinLabel = this.$(`<div class="tw-map-pin-label">${node.name}</div>`);
+                $pin.append($pinLabel);
+                $canvas.append($pin);
+            } else {
+                 const $item = this.$(`<li class="tw-sidebar-item" data-node-id="${node.id}">${node.name}</li>`);
+                 $sidebarList.append($item);
+                 hasUnplottedNodes = true;
+            }
+        });
+
+        $viewport.append($canvas, $svgLayer);
+        
+        if (hasUnplottedNodes) {
+             $sidebar.append($sidebarList);
+             $viewport.append($sidebar);
         }
-        return $card;
+        
+        $mapContent.append($viewport);
     }
 
+    _renderLiteMapPane($pane) {
+        $pane.css('padding', '15px'); // Add padding back for lite mode
+        const { mapDataManager } = this.mapSystem;
+        const { liteMapPathStack } = this.state;
+
+        if (!mapDataManager.isInitialized()) {
+             $pane.html(`
+                <div class="tw-map-placeholder" style="padding:15px;">
+                    <p class="tw-notice">当前角色没有地图档案。</p>
+                    <button id="tw-create-map-placeholder-btn" class="tw-create-map-button has-ripple">
+                        <span class="button-icon">🗺️</span> 创建地图档案
+                    </button>
+                    <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
+                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
+                    </p>
+                </div>`);
+             return;
+        }
+
+        // 1. Render Breadcrumbs
+        const $breadcrumbs = this.$('<div class="tw-lite-map-breadcrumbs"></div>');
+        $breadcrumbs.append('<span class="tw-lite-map-breadcrumb-item tw-lite-map-breadcrumb-item-root">世界</span>');
+        
+        liteMapPathStack.forEach((nodeId, index) => {
+            const node = mapDataManager.nodes.get(nodeId);
+            if (node) {
+                const isCurrent = index === liteMapPathStack.length - 1;
+                $breadcrumbs.append('<span>&nbsp;/&nbsp;</span>');
+                $breadcrumbs.append(
+                    `<span class="tw-lite-map-breadcrumb-item ${isCurrent ? 'current' : ''}" data-index="${index}">${node.name}</span>`
+                );
+            }
+        });
+        $pane.append($breadcrumbs);
+
+        // 2. Render Node List
+        const currentParentId = liteMapPathStack.length > 0 ? liteMapPathStack[liteMapPathStack.length - 1] : null;
+        
+        const children = Array.from(mapDataManager.nodes.values()).filter(node => {
+            return (currentParentId === null && !node.parentId) || node.parentId === currentParentId;
+        }).sort((a,b) => a.name.localeCompare(b.name));
+
+        const $list = this.$('<ul class="tw-lite-map-list"></ul>');
+        if (children.length === 0) {
+            $list.append('<p class="tw-notice">这里空空如也。</p>');
+        } else {
+            children.forEach(node => {
+                const hasChildren = this._nodeHasChildren(node.id);
+                const $item = this.$(`
+                    <li class="tw-lite-map-item" data-node-id="${node.id}">
+                        <div class="tw-lite-map-item-name">
+                            <span class="tw-lite-map-item-icon">${this._getNodeIcon(node)}</span>
+                            <span>${node.name}</span>
+                        </div>
+                        ${hasChildren ? '<span class="tw-lite-map-item-children-indicator">▶</span>' : ''}
+                    </li>
+                `);
+                $list.append($item);
+            });
+        }
+        $pane.append($list);
+    }
+
+    _nodeHasChildren(nodeId) {
+        for (const node of this.mapSystem.mapDataManager.nodes.values()) {
+            if (node.parentId === nodeId) return true;
+        }
+        return false;
+    }
+
+    _getNodeIcon(node) {
+        if (node.type) {
+            if (node.type.toLowerCase() === 'region') return '🏞️';
+            if (node.type.toLowerCase() === 'city') return '🏙️';
+            if (node.type.toLowerCase() === 'dungeon') return '🦇';
+            if (node.type.toLowerCase() === 'landmark') return '📍';
+        }
+        return '🌍'; // Default icon
+    }
+    
     renderSettingsPane($pane) {
-        // Clear previous content
         $pane.empty();
 
-        // 1. Theme Selection Section
-        const $themeList = this.$('<div class="theme-list"></div>');
-        if (this.skyThemeController && this.skyThemeController.availableThemes) {
-            this.skyThemeController.availableThemes.forEach(theme => {
-                const isActive = this.state.activeSkyThemeId === theme.id;
-                const $card = this.$(`
-                    <div class="theme-card ${isActive ? 'active' : ''}" data-theme-id="${theme.id}">
-                        <h4>${theme.name}</h4>
-                        <p>作者: ${theme.author}</p>
-                        <div class="theme-actions">
-                            <button class="btn-preview has-ripple">预览</button>
-                            <button class="btn-activate has-ripple">${isActive ? '当前' : '启用'}</button>
-                        </div>
-                    </div>
-                `);
-                $themeList.append($card);
-            });
-        }
-        const $themeSection = this.$(`
+        const settingsContent = `
             <div class="settings-item">
                 <div class="settings-item-text">
-                    <h4>天色主题</h4>
-                    <p>选择一个预设的天空颜色方案。</p>
+                    <h4>地图模式</h4>
+                    <p>在简洁的列表视图和高级的画布视图之间切换。</p>
+                </div>
+                <div class="tw-map-mode-switch">
+                    <button data-mode="lite" class="${this.state.mapMode === 'lite' ? 'active' : ''}">轻量模式</button>
+                    <button data-mode="advanced" class="${this.state.mapMode === 'advanced' ? 'active' : ''}">高级模式</button>
                 </div>
             </div>
-        `).append($themeList);
-
-        $pane.append($themeSection);
-        $pane.append('<hr class="ws-separator">');
-
-        // 2. Toggles and Buttons Section
-        const otherSettingsContent = `
+            <hr class="ws-separator">
+            <div class="settings-item">
+                <div class="settings-item-text">
+                    <h4>字体大小</h4>
+                    <p>调整世界仪表盘内所有文本的字体大小。</p>
+                </div>
+                <div class="select-container">
+                    <select id="font-size-select">
+                        <option value="12px" ${this.state.fontSize === '12px' ? 'selected' : ''}>小</option>
+                        <option value="14px" ${this.state.fontSize === '14px' ? 'selected' : ''}>默认</option>
+                        <option value="16px" ${this.state.fontSize === '16px' ? 'selected' : ''}>中</option>
+                        <option value="18px" ${this.state.fontSize === '18px' ? 'selected' : ''}>大</option>
+                    </select>
+                </div>
+            </div>
+            <hr class="ws-separator">
             <div class="settings-item">
                 <div class="settings-item-text">
                     <h4>动态背景</h4>
@@ -318,20 +412,72 @@ export class UIRenderer {
                 </div>
             </div>
             <hr class="ws-separator">
-            <div class="settings-item">
+             <div class="settings-item">
                 <div class="settings-item-text">
-                    <h4>UI 管理</h4>
-                     <p>如果面板被意外移出屏幕，此按钮可以将其复位到右上角。</p>
+                    <h4>天色主题</h4>
+                    <p>选择一个预设的天空颜色方案。</p>
                 </div>
-                <button id="reset-ui-btn" class="clear-data-btn has-ripple">🔄️ 重置UI位置</button>
             </div>
-            <div class="settings-item">
-                <div class="settings-item-text">
-                    <h4>数据管理</h4>
-                    <p>清空此扩展在浏览器中存储的所有数据。</p>
+        `;
+        $pane.append(settingsContent);
+
+        const $themeList = this.$('<div class="theme-list"></div>');
+        if (this.skyThemeController && this.skyThemeController.availableThemes) {
+            this.skyThemeController.availableThemes.forEach(theme => {
+                const isActive = this.state.activeSkyThemeId === theme.id;
+                const $card = this.$(`
+                    <div class="theme-card ${isActive ? 'active' : ''}" data-theme-id="${theme.id}">
+                        <h4>${theme.name}</h4>
+                        <p>作者: ${theme.author}</p>
+                        <div class="theme-actions">
+                            <button class="btn-preview has-ripple">预览</button>
+                            <button class="btn-activate has-ripple">${isActive ? '当前' : '启用'}</button>
+                        </div>
+                    </div>
+                `);
+                $themeList.append($card);
+            });
+        }
+        $pane.append($themeList);
+        $pane.append('<hr class="ws-separator">');
+
+        const managementContent = this.$(`
+            <div>
+                <div class="settings-item">
+                    <div class="settings-item-text">
+                        <h4>地图与数据</h4>
+                    </div>
                 </div>
-                <button id="clear-all-data-btn" class="clear-data-btn has-ripple">🗑️ 清空所有存储</button>
-            </div>`;
-        $pane.append(otherSettingsContent);
+                ${!this.mapSystem.mapDataManager.isInitialized() ? `
+                    <div class="settings-item">
+                        <div class="settings-item-text">
+                            <p>为当前角色创建一个新的地图档案世界书。</p>
+                        </div>
+                        <button id="tw-create-map-btn" class="clear-data-btn has-ripple" style="border-color: #2ecc71; color: #2ecc71;">🗺️ 创建地图档案</button>
+                    </div>
+                ` : `
+                    <div class="settings-item">
+                        <div class="settings-item-text">
+                            <p>地图档案已连接: <b>${this.mapSystem.mapDataManager.bookName}</b></p>
+                        </div>
+                    </div>
+                `}
+                <div class="settings-item">
+                    <div class="settings-item-text">
+                        <h4>数据存储</h4>
+                        <p>清空此扩展在浏览器中存储的所有数据（包括设置和缓存）。</p>
+                    </div>
+                    <button id="clear-all-data-btn" class="clear-data-btn has-ripple">🗑️ 清空所有存储</button>
+                </div>
+                <div class="settings-item">
+                   <div class="settings-item-text">
+                       <h4>UI 管理</h4>
+                        <p>如果面板被意外移出屏幕，此按钮可以将其复位到右上角。</p>
+                   </div>
+                   <button id="reset-ui-btn" class="clear-data-btn has-ripple">🔄️ 重置UI位置</button>
+               </div>
+            </div>
+        `);
+        $pane.append(managementContent);
     }
 }

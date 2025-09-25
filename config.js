@@ -18,8 +18,8 @@ export const Config = {
         SETTINGS: 'tw-settings' 
     },
     
-    MAP_TAG_REGEX: /<Map>([\s\S]+?)<\/Map>/s,
-    WORLD_STATE_TAG_REGEX: /<WorldState>([\s\S]+?)<\/WorldState>/s,
+    MAP_UPDATE_TAG_REGEX: /<MapUpdate>\s*(\[[\s\S]+?\])\s*<\/MapUpdate>/i,
+    WORLD_STATE_TAG_REGEX: /<WorldState>([\s\S]+?)<\/WorldState>/i,
     
     IMAGE_BASE_URL: 'https://files.catbox.moe/',
     RAIN_REFRACTION_URL: 'https://files.catbox.moe/wljyj5.jpg',

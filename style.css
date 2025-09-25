@@ -3,6 +3,9 @@
  * @description This file imports all other CSS files for the extension.
  */
 @import url('./css/base.css');
+@import url('./css/dialogs.css');
+@import url('./css/panes.css');
+@import url('./css/utils.css');
 @import url('./css/themes.css');
 @import url('./css/weather_icons.css');
 @import url('./css/weather_effects.css');
@@ -11,3 +14,4 @@
 @import url('./css/clouds_3d.css');
 @import url('./css/ambient_effects.css');
 @import url('./css/fireworks.css');
+@import url('./css/advanced_map.css');

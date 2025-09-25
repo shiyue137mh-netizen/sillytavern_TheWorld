@@ -1,0 +1,37 @@
+/**
+ * The World - Utilities & Animations Stylesheet
+ */
+
+/* -- General Utilities -- */
+.tw-notice { text-align: center; color: var(--text-secondary) }
+.has-ripple { position: relative; overflow: hidden }
+.tw-panel.is-dragging { transform: none !important; }
+.tw-panel .tw-tabs, .tw-panel .tw-content, .tw-panel .tw-resize-handle { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+.tw-panel.narrow-layout .ws-info-block { flex-direction: column; align-items: flex-start; }
+.tw-panel.narrow-layout .ws-info-block .ws-label { margin-bottom: 4px; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* -- Ripple Effect -- */
+.ripple { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, .3); transform: scale(0); animation: ripple-effect .6s linear }
+@keyframes ripple-effect { to { transform: scale(4); opacity: 0 } }
+
+/* -- Keyframe Animations -- */
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(.95) } to { opacity: 1; transform: scale(1) } }
+@keyframes scaleOut { from { opacity: 1; transform: scale(1) } to { opacity: 0; transform: scale(.95) } }
+
+/* -- Responsive / Mobile View -- */
+.tw-is-mobile-view #the_world-toggle-btn { top: auto; bottom: 15px; right: 15px; z-index: 10000; }
+.tw-is-mobile-view .tw-resize-handle { display: none; }
+@media (max-width: 480px) {
+    .tw-panel { width: calc(100% - 20px) !important; height: 70vh !important; top: 10px; left: 10px; right: 10px; }
+    .tw-panel.minimized { width: calc(100% - 20px) !important; min-width: unset; left: 10px !important; right: 10px !important; }
+    .tw-tab-link { font-size: 13px; padding: 8px 4px; }
+    .ws-dialog { width: 95%; padding: 15px; max-height: 80vh; overflow-y: auto }
+    .ws-dialog h3, .ws-dialog h4 { font-size: 14px }
+    .ws-time-inputs { grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)) }
+    .ws-weekday-buttons { grid-template-columns: repeat(4, 1fr) }
+    .ws-dialog-actions button { min-width: 100px }
+}

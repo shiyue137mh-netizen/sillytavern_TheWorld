@@ -18,6 +18,7 @@ import { IntroAnimation } from './IntroAnimation.js';
 import { AudioManager } from './audio/index.js';
 import { CommandParser } from './core/CommandParser.js';
 import { CommandProcessor } from './core/CommandProcessor.js';
+import { MapSystem } from './map_system/index.js';
 
 
 export class TheWorldApp {
@@ -54,6 +55,7 @@ export class TheWorldApp {
             triggerSlash: this.parentWin.TavernHelper.triggerSlash,
             logger: this.logger,
             timeGradient: this.timeGradient,
+            toastr: this.parentWin.toastr,
         };
 
         const injectionEngine = new InjectionEngine(dependencies);
@@ -69,7 +71,14 @@ export class TheWorldApp {
         dependencies.audioManager = audioManager;
         
         this.commandParser = new CommandParser(dependencies);
-        this.commandProcessor = new CommandProcessor({ audioManager, logger: this.logger });
+        
+        // Initialize Map System
+        this.mapSystem = new MapSystem(dependencies);
+        dependencies.mapSystem = this.mapSystem;
+        this.mapSystem.registerCommands(); // Register map commands unconditionally.
+
+        // Initialize CommandProcessor WITH mapSystem
+        this.commandProcessor = new CommandProcessor({ audioManager, mapSystem: this.mapSystem, logger: this.logger });
 
         const panelThemeManager = new PanelThemeManager(dependencies);
         this.panelThemeManager = panelThemeManager;
@@ -123,6 +132,12 @@ export class TheWorldApp {
             triggerEffect: (effectName) => this.panelThemeManager.weatherSystem.triggerEffect(effectName)
         };
         
+        // Proactively load map data on startup
+        const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
+        if (bookName) {
+            await this.mapSystem.initializeData(bookName);
+        }
+
         const lastId = this.TavernHelper.getLastMessageId();
         if (lastId >= 0) {
             this.logger.log(`Existing chat detected. Performing initial state calculation...`);
@@ -179,16 +194,38 @@ export class TheWorldApp {
             
             let updated = false;
 
-            const mapMatch = sanitizedMes.match(this.config.MAP_TAG_REGEX);
-            if (mapMatch) {
-                const newMapData = this.stateParser.parseMapData(mapMatch[1]);
-                if (typeof TheWorldState.latestMapData !== 'object' || TheWorldState.latestMapData === null) {
-                    TheWorldState.latestMapData = {};
-                }
-                Object.assign(TheWorldState.latestMapData, newMapData);
-                updated = true;
-            }
+            // --- CORRECTED <MapUpdate> Handling ---
+            const mapUpdateMatch = sanitizedMes.match(this.config.MAP_UPDATE_TAG_REGEX);
+            if (mapUpdateMatch) {
+                try {
+                    const updateJson = JSON.parse(mapUpdateMatch[1]);
+                    this.logger.log('Parsed <MapUpdate> tag:', updateJson);
 
+                    if (!this.mapSystem.mapDataManager.isInitialized()) {
+                        let bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
+                        if (!bookName) {
+                            this.logger.log('No map worldbook found, creating one on-demand...');
+                            bookName = await this.mapSystem.lorebookManager.createAndBindMapWorldbook();
+                        }
+                        
+                        if (bookName) {
+                            await this.mapSystem.mapDataManager.initialize(bookName);
+                        } else {
+                            this.logger.error('Failed to find or create a map worldbook. Cannot process <MapUpdate>.');
+                        }
+                    }
+
+                    if (this.mapSystem.mapDataManager.isInitialized()) {
+                        await this.mapSystem.mapDataManager.processMapUpdate(updateJson);
+                        await this.mapSystem.atlasManager.updateAtlas(); // Update the Atlas after map changes
+                        updated = true;
+                    }
+
+                } catch (error) {
+                    this.logger.error('Failed to parse or process <MapUpdate> tag:', error);
+                }
+            }
+            
             const worldStateMatch = sanitizedMes.match(this.config.WORLD_STATE_TAG_REGEX);
             if (worldStateMatch) {
                 const newWorldStateData = this.stateParser.parseWorldState(worldStateMatch[1]);
@@ -201,7 +238,7 @@ export class TheWorldApp {
 
             if (updated) {
                 this.dataManager.saveState();
-                this.logger.log(`[Processor] Data from message ${msgId} processed and merged. Updating UI.`);
+                this.logger.log(`[Processor] WorldState from message ${msgId} processed. Updating UI.`);
                 if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
             }
             
@@ -234,8 +271,8 @@ export class TheWorldApp {
             if (message.is_user) continue;
             
             const msg = message.message.replace(/<thinking>[\s\S]*?<\/thinking>|<think>[\s\S]*?<\/think>/g, '');
-            const mapMatch = msg.match(this.config.MAP_TAG_REGEX);
-            if (mapMatch) Object.assign(TheWorldState.latestMapData, this.stateParser.parseMapData(mapMatch[1]));
+            // NOTE: <MapUpdate> is not processed during recalculation to avoid re-processing persistent data.
+            // Recalculation is primarily for transient state like WorldState.
             
             const worldStateMatch = msg.match(this.config.WORLD_STATE_TAG_REGEX);
             if (worldStateMatch) Object.assign(TheWorldState.latestWorldStateData, this.stateParser.parseWorldState(worldStateMatch[1]));
@@ -256,7 +293,7 @@ export class TheWorldApp {
         const { eventSource, eventTypes } = this.SillyTavernContext;
 
         eventSource.on(eventTypes.MESSAGE_RECEIVED, (id) => this.debouncedProcessor(id, false));
-        eventSource.on(eventTypes.MESSAGE_EDITED, (id) => this.debouncedProcessor(id, true));
+        eventSource.on(eventTypes.MESSAGE_EDITED, (id) => this.debouncedProcessor(id, true)); 
         eventSource.on(eventTypes.MESSAGE_SWIPED, (id) => this.debouncedProcessor(id, true)); 
         
         eventSource.on(eventTypes.MESSAGE_DELETED, async (id) => {
@@ -293,6 +330,19 @@ export class TheWorldApp {
         eventSource.on(eventTypes.CHAT_CHANGED, async () => {
             this.logger.log('Chat changed. Clearing snapshot and recalculating for new chat.');
             this.previousStateSnapshot = null;
+
+            // Proactively initialize map data for the new chat
+            const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
+            if (bookName) {
+                await this.mapSystem.initializeData(bookName);
+            } else {
+                // If no book, clear the data manager's state to prevent showing old map data
+                this.mapSystem.mapDataManager.nodes.clear();
+                this.mapSystem.mapDataManager.bookName = null;
+                this.mapSystem.mapDataManager._isInitialized = false;
+                await this.mapSystem.atlasManager.updateAtlas(); // Update to show an empty atlas
+            }
+
             const lastId = this.TavernHelper.getLastMessageId();
             if (lastId >= 0) {
                 await this.recalculateAndSnapshot(lastId);

@@ -16,7 +16,7 @@
 	right: 0;
 	bottom: 0; /* Changed */
 	overflow: hidden;
-    z-index: 1;
+    z-index: -1;
     /* Background is transparent, handled by the main theme engine */
 }
 

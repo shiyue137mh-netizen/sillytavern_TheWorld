@@ -52,6 +52,8 @@ export class DataManager {
         assignSetting('panelTop', this.state.panelTop);
         assignSetting('panelLeft', this.state.panelLeft);
         assignSetting('hasLoadedBefore', this.state.hasLoadedBefore);
+        assignSetting('fontSize', this.state.fontSize);
+        assignSetting('mapMode', this.state.mapMode);
         assignSetting('isAudioEnabled', this.state.isAudioEnabled);
         assignSetting('ambientVolume', this.state.ambientVolume);
         assignSetting('sfxVolume', this.state.sfxVolume);
@@ -78,6 +80,8 @@ export class DataManager {
             panelTop: this.state.panelTop,
             panelLeft: this.state.panelLeft,
             hasLoadedBefore: this.state.hasLoadedBefore,
+            fontSize: this.state.fontSize,
+            mapMode: this.state.mapMode,
             isAudioEnabled: this.state.isAudioEnabled,
             ambientVolume: this.state.ambientVolume,
             sfxVolume: this.state.sfxVolume,

@@ -79,27 +79,33 @@ export class Clouds3dFX {
         if (!this.isActive || !this.world) return;
     
         let filter = 'brightness(1)'; // Default: White clouds for day
+        const isBadWeather = weather.includes('雷') || weather.includes('雨') || weather.includes('雪') || weather.includes('阴');
     
-        // Priority 1: Severe Weather -> Darkest clouds
-        if (weather.includes('雷') || weather.includes('暴雨')) {
-            filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)';
+        if (isBadWeather) {
+            // Bad weather logic: Weather type is primary, time of day is secondary.
+            if (period.includes('夜')) {
+                // Very dark clouds for night storms
+                filter = 'brightness(0.2) contrast(1.1) grayscale(0.7)';
+            } else if (period.includes('黄昏') || period.includes('日出') || period.includes('日落') || period.includes('清晨')) {
+                // Dark, but not black clouds for twilight storms
+                filter = 'brightness(0.4) contrast(1.0) saturate(0.6) grayscale(0.5)';
+            } else {
+                // Standard stormy day clouds
+                filter = 'brightness(0.65) contrast(0.9) saturate(0.7) grayscale(0.3)';
+            }
+        } else {
+            // Clear weather logic: Time of day is primary.
+            if (period.includes('夜')) {
+                filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)'; // Dark night clouds
+            } else if (period.includes('黄昏')) {
+                filter = 'brightness(0.5) contrast(1.0) saturate(0.9) grayscale(0.4)'; // Mid-gray dusk clouds
+            } else if (period.includes('日出') || period.includes('日落') || period.includes('清晨')) {
+                filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)'; // Colorful sunrise/sunset
+            } else {
+                // Default to bright day clouds
+                filter = 'brightness(1)';
+            }
         }
-        // Priority 2: Normal Precipitation -> Gray clouds
-        else if (weather.includes('雨') || weather.includes('雪') || weather.includes('阴')) {
-            filter = 'brightness(0.75) contrast(0.9) saturate(0.8) grayscale(0.2)';
-        }
-        // Priority 3: Time of Day (if weather is clear-ish)
-        else if (period.includes('夜')) {
-            filter = 'brightness(0.25) contrast(1.2) grayscale(0.7)'; // Dark night clouds
-        }
-        else if (period.includes('黄昏')) { // The new transitional period requested
-            filter = 'brightness(0.5) contrast(1.0) saturate(0.9) grayscale(0.4)'; // Mid-gray dusk clouds
-        }
-        else if (period.includes('日出') || period.includes('日落') || period.includes('清晨')) {
-            filter = 'sepia(0.6) hue-rotate(-30deg) saturate(1.6) brightness(0.9)'; // Colorful sunrise/sunset
-        }
-        
-        // The default 'brightness(1)' is used if no other condition is met (daytime).
         
         this.$(this.world).find('.cloudLayer').css('filter', filter);
     }
