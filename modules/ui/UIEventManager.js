@@ -3,8 +3,6 @@
  * @description Centralizes all UI event bindings for the panel.
  * V2: Refactored to delegate map and editor interactions to specialized managers.
  */
-import { MapViewportManager } from './MapViewportManager.js';
-import { MapEditorManager } from './MapEditorManager.js';
 
 export class UIEventManager {
     constructor(dependencies) {
@@ -13,12 +11,7 @@ export class UIEventManager {
         this.pressStartTime = 0;
         this.isAudioUnlocked = false;
 
-        // Instantiate specialized managers
-        this.mapViewportManager = new MapViewportManager(dependencies);
-        this.mapEditorManager = new MapEditorManager({ 
-            ...dependencies, 
-            viewportManager: this.mapViewportManager 
-        });
+        // Managers are now passed in via dependencies, no need to instantiate them here.
     }
 
     toggleSkygazingMode() {

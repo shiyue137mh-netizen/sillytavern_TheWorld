@@ -7,6 +7,8 @@ import { UIDialogs } from './UIDialogs.js';
 import { UIPanelManager } from './UIPanelManager.js';
 import { UIEventManager } from './UIEventManager.js';
 import { TimeAnimator } from './TimeAnimator.js';
+import { MapViewportManager } from './MapViewportManager.js';
+import { MapEditorManager } from './MapEditorManager.js';
 
 export class UIController {
     constructor(dependencies) {
@@ -16,21 +18,31 @@ export class UIController {
         this.state = dependencies.state;
         this.logger = dependencies.logger;
 
+        // Instantiate all UI sub-modules in the correct order
+        const mapViewportManager = new MapViewportManager(this.dependencies);
+        const renderer = new UIRenderer({ ...this.dependencies, mapViewportManager });
+        const dialogs = new UIDialogs({ ...this.dependencies, renderer });
+        const mapEditorManager = new MapEditorManager({
+            ...this.dependencies,
+            dialogs, // Pass the created dialogs instance
+            renderer,
+            viewportManager: mapViewportManager,
+        });
+        this.panelManager = new UIPanelManager(this.dependencies);
+        this.timeAnimator = new TimeAnimator(this.dependencies);
+
+        // UIEventManager is the conductor, it gets all other modules
         const eventManager = new UIEventManager({
             ...this.dependencies,
             ui: this,
+            renderer,
+            dialogs,
+            panelManager: this.panelManager,
+            mapViewportManager,
+            mapEditorManager,
         });
-        
-        const renderer = new UIRenderer({ ...this.dependencies, mapViewportManager: eventManager.mapViewportManager, mapEditorManager: eventManager.mapEditorManager });
-        const dialogs = new UIDialogs({ ...dependencies, renderer });
-        this.panelManager = new UIPanelManager(dependencies);
-        this.timeAnimator = new TimeAnimator(dependencies);
-        
-        // Pass modules to event manager after they are created
-        eventManager.renderer = renderer;
-        eventManager.dialogs = dialogs;
-        eventManager.panelManager = this.panelManager;
 
+        // Assign to class properties
         this.renderer = renderer;
         this.dialogs = dialogs;
         this.eventManager = eventManager;

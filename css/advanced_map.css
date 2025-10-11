@@ -13,7 +13,11 @@
     height: 100%;
     overflow: hidden;
     cursor: grab;
-    background-color: #2d3748; /* Solid background for the viewport */
+    background-color: #2d3748;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+    background-size: 25px 25px;
     border-radius: 0 0 12px 12px; /* Match panel corners */
 }
 .tw-map-viewport:active { cursor: grabbing; }
@@ -29,12 +33,9 @@
     pointer-events: none; /* Canvas receives events through viewport, SVG is just for display */
 }
 .tw-map-canvas {
-    /* Moved grid from viewport to canvas */
-    background-image:
-        linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
-    /* Background size and position are now set dynamically in JS */
-    background-repeat: repeat; /* Ensure grid tiles */
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 .tw-map-canvas > * {
     pointer-events: all; /* Pins should be interactive */

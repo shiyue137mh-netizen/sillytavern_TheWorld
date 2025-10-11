@@ -5,7 +5,7 @@
 import { HOLIDAY_DATA } from '../utils/holidays.js';
 
 export class UIRenderer {
-    constructor({ $, config, state, skyThemeController, mapSystem, logger, mapViewportManager, mapEditorManager }) {
+    constructor({ $, config, state, skyThemeController, mapSystem, logger, mapViewportManager }) {
         this.$ = $;
         this.config = config;
         this.state = state;
@@ -13,7 +13,6 @@ export class UIRenderer {
         this.mapSystem = mapSystem; // For direct access to map data
         this.logger = logger;
         this.mapViewportManager = mapViewportManager;
-        this.mapEditorManager = mapEditorManager;
     }
 
     getWeatherIconHtml(weather, period) {
@@ -172,7 +171,7 @@ export class UIRenderer {
                         <span class="button-icon">🗺️</span> 创建地图档案
                     </button>
                     <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
-                        或者，让AI在故事中通过 <MapUpdate> 标签自动创建。
+                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
                     </p>
                 </div>`);
              $mapContent.append($placeholder);
@@ -223,48 +222,8 @@ export class UIRenderer {
         const vw = $viewport.width();
         const vh = $viewport.height();
         
-        // --- DYNAMIC BOUNDS LOGIC ---
-        const isEditMode = this.mapEditorManager.isEditorActive();
-        let canvasSize, coordMapFn;
-
-        if (isEditMode || isIndoor) {
-            this.logger.log(`[Map Renderer] Edit/Indoor mode: using fixed large canvas.`);
-            canvasSize = isIndoor ? 800 : 2400; // Large canvas for editing
-            const logicalMax = isIndoor ? 30 : 1200;
-            coordMapFn = (coord) => (coord / logicalMax) * 100;
-        } else {
-            this.logger.log('[Map Renderer] View mode: using dynamic bounds.');
-            const plottedNodes = nodesToRender.filter(n => n.coords);
-            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-            if (plottedNodes.length > 0) {
-                plottedNodes.forEach(node => {
-                    const [x, y] = node.coords.split(',').map(Number);
-                    minX = Math.min(minX, x);
-                    maxX = Math.max(maxX, x);
-                    minY = Math.min(minY, y);
-                    maxY = Math.max(maxY, y);
-                });
-            } else { // Default bounds if no nodes
-                minX = 0; maxX = 100; minY = 0; maxY = 100;
-            }
-
-            const boundsWidth = Math.max(10, maxX - minX); // Ensure minimum size
-            const boundsHeight = Math.max(10, maxY - minY);
-            const logicalSize = Math.max(boundsWidth, boundsHeight) * 1.2; // 20% padding
-            
-            const bounds = {
-                minX: minX - (logicalSize - boundsWidth) / 2,
-                minY: minY - (logicalSize - boundsHeight) / 2,
-                size: logicalSize,
-            };
-
-            canvasSize = Math.min(vw, vh) * 2; // Make canvas larger for smoother panning at edges
-            coordMapFn = (coord, axis) => {
-                const val = axis === 'x' ? coord - bounds.minX : coord - bounds.minY;
-                return (val / bounds.size) * 100;
-            };
-        }
+        const canvasSize = isIndoor ? 800 : 1200;
+        const logicalMax = isIndoor ? 30 : 1200;
 
         const canvasOffsetLeft = (vw - canvasSize) / 2;
         const canvasOffsetTop = (vh - canvasSize) / 2;
@@ -299,8 +258,8 @@ export class UIRenderer {
         nodesToRender.forEach(node => {
             if (node.coords) {
                 const [x, y] = node.coords.split(',').map(Number);
-                const leftPercent = coordMapFn(x, 'x');
-                const topPercent = coordMapFn(y, 'y');
+                const leftPercent = (x / logicalMax) * 100;
+                const topPercent = (y / logicalMax) * 100;
                 
                 const enterableTypes = ['building', 'dungeon', 'landmark', 'shop', 'house', 'camp'];
                 const isEnterable = enterableTypes.includes(node.type);
@@ -392,7 +351,7 @@ export class UIRenderer {
                         <span class="button-icon">🗺️</span> 创建地图档案
                     </button>
                     <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
-                        或者，让AI在故事中通过 <MapUpdate> 标签自动创建。
+                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
                     </p>
                 </div>`);
              return;

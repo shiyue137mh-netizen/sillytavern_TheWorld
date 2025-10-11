@@ -49,8 +49,7 @@ export class MapViewportManager {
         const grid_size = 25 * zoom;
         const bg_position = `${pan.x}px ${pan.y}px`;
     
-        // The grid is on the canvas, so update its size and position.
-        $viewport.find('.tw-map-canvas').css({
+        $viewport.css({
             'background-size': `${grid_size}px ${grid_size}px`,
             'background-position': bg_position
         });
@@ -88,27 +87,8 @@ export class MapViewportManager {
         if (!this.mapState.isPanning) return;
         e.preventDefault(); // Prevent text selection on drag
         const coords = this._getEventCoords(e);
-        
-        let newX = coords.clientX - this.mapState.startPos.x;
-        let newY = coords.clientY - this.mapState.startPos.y;
-
-        // Only clamp panning if NOT in editor mode
-        if (this.mapEditorManager && !this.mapEditorManager.isEditorActive()) {
-            const $canvas = this.$('.tw-map-canvas');
-            const $viewport = this.$('.tw-map-viewport');
-            const canvasWidth = $canvas.width() * this.mapState.zoom;
-            const canvasHeight = $canvas.height() * this.mapState.zoom;
-            const viewportWidth = $viewport.width();
-            const viewportHeight = $viewport.height();
-
-            newX = Math.min(newX, 0);
-            newX = Math.max(newX, viewportWidth - canvasWidth);
-            newY = Math.min(newY, 0);
-            newY = Math.max(newY, viewportHeight - canvasHeight);
-        }
-
-        this.mapState.pan.x = newX;
-        this.mapState.pan.y = newY;
+        this.mapState.pan.x = coords.clientX - this.mapState.startPos.x;
+        this.mapState.pan.y = coords.clientY - this.mapState.startPos.y;
         this.applyMapTransform();
     }
 
@@ -240,18 +220,19 @@ export class MapViewportManager {
         const $canvas = this.$('.tw-map-canvas');
         const $viewport = this.$('.tw-map-viewport');
         if (!$canvas.length || !$viewport.length) return;
+        
+        const isIndoor = this.state.advancedMapPathStack.length > 0;
+        const logicalMax = isIndoor ? 30 : 1200;
 
-        // The renderer now handles coordinate mapping, so we can use the percentage values directly.
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        $canvas.find('.tw-map-pin').each((_, pin) => {
-            const $pin = this.$(pin);
-            // Use percentage and canvas size to get pixel position on canvas
-            const left = (parseFloat($pin.css('left')) / 100) * $canvas.width();
-            const top = (parseFloat($pin.css('top')) / 100) * $canvas.height();
-            minX = Math.min(minX, left);
-            maxX = Math.max(maxX, left);
-            minY = Math.min(minY, top);
-            maxY = Math.max(maxY, top);
+        plottedNodes.forEach(node => {
+            const [x, y] = node.coords.split(',').map(Number);
+            const canvasX = (x / logicalMax) * $canvas.width();
+            const canvasY = (y / logicalMax) * $canvas.height();
+            minX = Math.min(minX, canvasX);
+            maxX = Math.max(maxX, canvasX);
+            minY = Math.min(minY, canvasY);
+            maxY = Math.max(maxY, canvasY);
         });
 
         const boundsWidth = maxX - minX;
