@@ -13,11 +13,7 @@
     height: 100%;
     overflow: hidden;
     cursor: grab;
-    background-color: #2d3748;
-    background-image:
-        linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
-    background-size: 25px 25px;
+    background-color: #2d3748; /* Solid background for the viewport */
     border-radius: 0 0 12px 12px; /* Match panel corners */
 }
 .tw-map-viewport:active { cursor: grabbing; }
@@ -33,8 +29,12 @@
     pointer-events: none; /* Canvas receives events through viewport, SVG is just for display */
 }
 .tw-map-canvas {
-    background-size: cover;
-    background-position: center;
+    /* Moved grid from viewport to canvas */
+    background-image:
+        linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+    /* Background size and position are now set dynamically in JS */
+    background-repeat: repeat; /* Ensure grid tiles */
 }
 .tw-map-canvas > * {
     pointer-events: all; /* Pins should be interactive */
@@ -43,14 +43,14 @@
 /* Map Pins (NEW STYLE) */
 .tw-map-pin {
     position: absolute;
-    transform: translate(-50%, -50%); /* Center the dot on the coordinate */
+    /* transform is now set by JS */
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     -webkit-user-select: none;
     user-select: none;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    transition: opacity 0.3s ease-in-out;
 }
 .tw-map-pin::before {
     content: '';
@@ -61,15 +61,58 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.4);
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
-/* Hierarchical sizing */
-.tw-map-pin.is-parent-node::before {
-    width: 16px;
-    height: 16px;
+
+/* --- Type-based Styling --- */
+
+/* Default / Landmark */
+.tw-map-pin.type-default::before,
+.tw-map-pin.type-landmark::before {
+    width: 8px;
+    height: 8px;
+    border-color: #f1c40f;
 }
-.tw-map-pin.is-child-node::before {
-    width: 12px;
-    height: 12px;
+
+/* Enterable Nodes (Hollow Ring) */
+.tw-map-pin.is-enterable::before {
+    background-color: transparent;
+    border-width: 3px;
+    border-color: #2ecc71;
 }
+
+/* City / Town / Village */
+.tw-map-pin.type-city::before,
+.tw-map-pin.type-town::before,
+.tw-map-pin.type-village::before {
+    width: 10px;
+    height: 10px;
+    border-color: #3498db;
+}
+
+/* Region / Continent (Text-based) */
+.tw-map-pin.type-region .tw-map-pin-label,
+.tw-map-pin.type-continent .tw-map-pin-label {
+    font-size: 28px; /* Large text */
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.2);
+    background: none;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+    transform: translateY(0); /* Reset label position */
+    opacity: 1; /* Always visible by default */
+    transition: opacity 0.4s ease;
+}
+.tw-map-pin.type-region::before,
+.tw-map-pin.type-continent::before {
+    display: none; /* Hide the dot for text-based nodes */
+}
+
+/* LOD: Hide region/continent text when zoomed in */
+.zoom-near .type-region .tw-map-pin-label,
+.zoom-near .type-continent .tw-map-pin-label {
+    opacity: 0;
+    pointer-events: none;
+}
+
+
 .tw-map-pin:hover::before,
 .tw-map-pin.selected::before {
     transform: scale(1.3);
@@ -85,17 +128,21 @@
     font-size: 12px;
     font-weight: bold;
     white-space: nowrap;
-    transform: translateY(12px); /* Position below the pin point */
+    transform: translateY(8px); /* Position below the pin point */
     pointer-events: none; /* Make sure label doesn't interfere with hover */
+    opacity: 0; /* Hide labels by default for a clean view */
+    transition: opacity 0.2s ease-in-out;
 }
 
-/* NEW: Level of Detail (LOD) Hiding */
-.tw-map-pin.tw-pin-hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, -50%) scale(0.5);
+/* Show label on hover */
+.tw-map-pin:hover .tw-map-pin-label {
+    opacity: 1;
 }
 
+/* LOD: When zoomed in close, automatically show all point labels */
+.zoom-near .tw-map-pin:not(.type-continent):not(.type-region) .tw-map-pin-label {
+    opacity: 1;
+}
 
 /* SVG Lines */
 .tw-map-line {
@@ -135,7 +182,7 @@
     font-size: 1em;
     flex-shrink: 0;
 }
-.tw-sidebar-list {
+.tw-sidebar-tree {
     list-style: none;
     padding: 10px;
     margin: 0;
@@ -283,17 +330,17 @@
     cursor: crosshair;
 }
 
-/* --- NEW: Editor Toolbox (Left Sidebar) --- */
+/* --- NEW: Editor Toolbox (Bottom Panel) --- */
 .tw-map-editor-toolbox {
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
-    height: 100%;
-    width: 300px;
-    transform: translateX(-100%);
+    height: 300px;
+    width: 100%;
+    transform: translateY(100%);
     transition: transform 0.3s ease-in-out;
     background: rgba(20,22,28,0.85);
-    border-right: 1px solid var(--dialog-border);
+    border-top: 1px solid var(--dialog-border);
     z-index: 20;
     display: flex;
     flex-direction: column;
@@ -319,7 +366,7 @@
 
 
 #map-nav-pane.editor-mode-active .tw-map-editor-toolbox {
-    transform: translateX(0);
+    transform: translateY(0);
 }
 
 
@@ -350,11 +397,18 @@
 
 .tw-toolbox-body {
     flex-grow: 1;
-    overflow-y: auto; /* FIXED: This is the main scrolling container */
+    display: flex;
+    overflow: hidden;
+    padding: 10px;
+    gap: 10px;
 }
 
 .tw-node-list-container {
-    padding: 10px;
+    flex: 1 1 250px;
+    min-width: 200px;
+    overflow-y: auto;
+    padding-right: 10px;
+    border-right: 1px solid var(--dialog-header-border);
 }
 
 .tw-map-node-tree {
@@ -383,10 +437,11 @@
 
 
 .tw-map-node-editor {
-    flex-shrink: 0;
-    border-top: 1px solid var(--dialog-header-border);
-    padding: 15px;
-    background: rgba(0,0,0,0.15);
+    flex: 2 1 400px;
+    min-width: 300px;
+    border-top: none;
+    overflow-y: auto;
+    padding: 0 10px;
 }
 .tw-map-node-editor.hidden {
     display: none;
@@ -438,19 +493,6 @@
 /* --- Pin Interaction Styles --- */
 .tw-map-pin.selected::before {
     animation: pin-pulse 1.5s infinite;
-}
-/* Ghost element for dragging pins */
-.tw-map-pin-ghost {
-    position: fixed; /* Use fixed positioning for smooth dragging over everything */
-    z-index: 10000;
-    pointer-events: none;
-    opacity: 0.7;
-    font-size: 20px; /* Match pin size */
-    transform: translate(-50%, -100%);
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
-}
-.tw-map-pin-ghost::before {
-    content: '📍';
 }
 
 /* NEW: Ghost for dragging uncharted nodes from sidebar */
@@ -577,9 +619,11 @@
 
 /* --- Global Settings in Editor Toolbox --- */
 .tw-map-global-settings {
-    padding: 15px;
-    background: rgba(0,0,0,0.1);
-    flex-shrink: 0;
+    flex: 1 1 200px;
+    min-width: 180px;
+    padding-left: 10px;
+    border-left: 1px solid var(--dialog-header-border);
+    overflow-y: auto;
 }
 
 .tw-map-global-settings-divider {
@@ -610,8 +654,8 @@
 /* --- Zoom Controls --- */
 .tw-map-zoom-controls {
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    top: 15px;
+    left: 15px;
     z-index: 20;
     display: flex;
     flex-direction: column;
@@ -626,7 +670,7 @@
     backdrop-filter: blur(4px);
     color: var(--dialog-text);
     border-radius: 8px;
-    font-size: 24px;
+    font-size: 20px; /* Adjusted for emoji */
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -644,4 +688,106 @@
 
 .tw-map-zoom-btn:active {
     transform: scale(0.95);
+}
+
+#tw-map-recenter-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(45, 55, 72, 0.5);
+}
+
+
+/* --- NEW: Advanced Map Breadcrumbs (Indoor View) --- */
+.tw-adv-map-breadcrumbs {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 6px 12px;
+    background: rgba(20, 22, 28, 0.85);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+    border: 1px solid var(--dialog-border);
+    color: var(--text-main);
+    font-size: 0.9em;
+}
+
+.tw-adv-map-breadcrumb-item {
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.tw-adv-map-breadcrumb-item:hover {
+    color: var(--text-main);
+    text-decoration: underline;
+}
+.tw-adv-map-breadcrumb-item.current {
+    font-weight: bold;
+    color: var(--text-main);
+    cursor: default;
+    text-decoration: none;
+}
+
+/* === NEW: Map Coordinate Rulers === */
+.tw-map-ruler-x, .tw-map-ruler-y, .tw-map-ruler-corner {
+    position: absolute;
+    background-color: #242933;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 5;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.tw-map-ruler-x {
+    bottom: 0;
+    left: 0;
+    right: 20px;
+    height: 20px;
+    border-top: 1px solid #4a5568;
+}
+.tw-map-ruler-y {
+    top: 0;
+    right: 0;
+    bottom: 20px;
+    width: 20px;
+    border-left: 1px solid #4a5568;
+}
+.tw-map-ruler-corner {
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-top: 1px solid #4a5568;
+    border-left: 1px solid #4a5568;
+}
+.tw-ruler-tick {
+    position: absolute;
+    background-color: #718096;
+}
+.tw-ruler-tick-label {
+    position: absolute;
+    color: #a0aec0;
+    font-size: 10px;
+}
+.tw-map-ruler-x .tw-ruler-tick {
+    bottom: 0;
+    width: 1px;
+}
+.tw-map-ruler-x .tw-ruler-tick-label {
+    top: 2px;
+    transform: translateX(4px);
+}
+.tw-map-ruler-y .tw-ruler-tick {
+    right: 0;
+    height: 1px;
+}
+.tw-map-ruler-y .tw-ruler-tick-label {
+    left: 2px;
+    transform: translateY(4px);
+    writing-mode: vertical-rl;
+    text-orientation: sideways;
 }

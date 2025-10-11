@@ -9,30 +9,32 @@ import { UIEventManager } from './UIEventManager.js';
 import { TimeAnimator } from './TimeAnimator.js';
 
 export class UIController {
-    constructor({ panelThemeManager, globalThemeManager, skyThemeController, audioManager, ...dependencies }) {
-        this.dependencies = { ...dependencies, panelThemeManager, globalThemeManager, skyThemeController, audioManager };
+    constructor(dependencies) {
+        this.dependencies = dependencies;
         this.$ = dependencies.$;
         this.config = dependencies.config;
         this.state = dependencies.state;
         this.logger = dependencies.logger;
 
-        const renderer = new UIRenderer(this.dependencies);
+        const eventManager = new UIEventManager({
+            ...this.dependencies,
+            ui: this,
+        });
+        
+        const renderer = new UIRenderer({ ...this.dependencies, mapViewportManager: eventManager.mapViewportManager, mapEditorManager: eventManager.mapEditorManager });
         const dialogs = new UIDialogs({ ...dependencies, renderer });
         this.panelManager = new UIPanelManager(dependencies);
         this.timeAnimator = new TimeAnimator(dependencies);
         
-        const eventManager = new UIEventManager({
-            ...this.dependencies,
-            renderer: renderer,
-            dialogs: dialogs,
-            panelManager: this.panelManager,
-            ui: this, 
-        });
+        // Pass modules to event manager after they are created
+        eventManager.renderer = renderer;
+        eventManager.dialogs = dialogs;
+        eventManager.panelManager = this.panelManager;
 
         this.renderer = renderer;
         this.dialogs = dialogs;
         this.eventManager = eventManager;
-        this.panelThemeManager = panelThemeManager;
+        this.panelThemeManager = dependencies.panelThemeManager;
     }
     
     async init() {
@@ -123,7 +125,7 @@ export class UIController {
         // Render the new map pane
         await this.renderer.renderMapPane($mapPane);
         if (this.state.mapMode === 'advanced') {
-            this.eventManager._updatePinVisibility();
+            this.eventManager.mapViewportManager.updateMapOverlays();
         }
 
 

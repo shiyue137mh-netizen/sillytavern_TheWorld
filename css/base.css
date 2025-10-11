@@ -217,3 +217,15 @@
     z-index: 10;
     background-image: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, .3) 40%, rgba(255, 255, 255, .3) 60%, transparent 60%), linear-gradient(135deg, transparent 70%, rgba(255, 255, 255, .3) 70%)
 }
+
+.tw-fx-container-local {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0; /* Behind content but above theme layers */
+    border-radius: 12px; /* Match panel rounding */
+    overflow: hidden;
+}

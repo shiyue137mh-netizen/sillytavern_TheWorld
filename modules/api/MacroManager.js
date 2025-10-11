@@ -1,3 +1,4 @@
+
 /**
  * The World - API Macro Manager
  * @description Registers all {{tw_...}} macros for developers.
@@ -5,11 +6,12 @@
 import { HOLIDAY_DATA } from '../utils/holidays.js';
 
 export class MacroManager {
-    constructor({ helper, state, mapSystem, logger }) {
+    constructor({ helper, state, mapSystem, logger, weatherForecaster }) {
         this.helper = helper;
         this.state = state;
         this.mapSystem = mapSystem;
         this.logger = logger;
+        this.weatherForecaster = weatherForecaster;
     }
 
     registerAll() {
@@ -22,6 +24,8 @@ export class MacroManager {
         this.register_tw_node_exists();
         this.register_tw_weekday();
         this.register_tw_holiday();
+        this.register_tw_list_all_locations();
+        this.register_tw_weather_forecast();
         this.logger.success('[MacroManager] All macros registered.');
     }
 
@@ -176,6 +180,33 @@ export class MacroManager {
                 }
             }
             return '';
+        });
+    }
+    
+    /**
+     * Registers `{{tw_list_all_locations}}`
+     */
+    register_tw_list_all_locations() {
+        const regex = /{{tw_list_all_locations}}/g;
+        this.helper.registerMacroLike(regex, () => {
+            const nodes = Array.from(this.mapSystem.mapDataManager.nodes.values());
+            if (!nodes || nodes.length === 0) {
+                return '[No locations defined]';
+            }
+            return nodes.map(node => `${node.name} (${node.id})`).join(', ');
+        });
+    }
+
+    /**
+     * Registers `{{tw_weather_forecast}}`
+     */
+    register_tw_weather_forecast() {
+        const regex = /{{tw_weather_forecast}}/g;
+        this.helper.registerMacroLike(regex, () => {
+            if (this.weatherForecaster) {
+                return this.weatherForecaster.generateForecast();
+            }
+            return '[Weather system not initialized]';
         });
     }
 }

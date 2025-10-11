@@ -1,0 +1,96 @@
+
+{
+  "season_id": "temperate_spring",
+  "base_system": "clear_sky",
+  "systems": {
+    "clear_sky": {
+      "name": "晴空系统",
+      "allowed_weathers": [
+        { "weather": "晴朗", "weight": 85 },
+        { "weather": "多云", "weight": 15 }
+      ]
+    },
+    "overcast": {
+      "name": "阴云密布",
+      "allowed_weathers": [
+        { "weather": "多云", "weight": 60 },
+        { "weather": "阴天", "weight": 30 },
+        { "weather": "零星小雨", "weight": 10 }
+      ]
+    },
+    "frontal_passage": {
+      "name": "锋面过境",
+      "allowed_weathers": [
+        { "weather": "多云", "weight": 40 },
+        { "weather": "小雨", "weight": 40 },
+        { "weather": "雷雨", "weight": 20 }
+      ]
+    },
+    "windy": {
+      "name": "大风天气",
+      "allowed_weathers": [
+        { "weather": "晴间有风", "weight": 50 },
+        { "weather": "多云有风", "weight": 50 }
+      ]
+    },
+    "snow_system": {
+      "name": "降雪系统",
+      "allowed_weathers": [
+        { "weather": "阴天", "weight": 40 },
+        { "weather": "小雪", "weight": 50 },
+        { "weather": "中雪", "weight": 10 }
+      ]
+    }
+  },
+  "transitions": [
+    {
+      "from": "clear_sky",
+      "to": [
+        { "system": "clear_sky", "weight": 85 },
+        { "system": "overcast", "weight": 10 },
+        { "system": "windy", "weight": 5 }
+      ],
+      "min_slots": 3,
+      "max_slots": 9
+    },
+    {
+      "from": "overcast",
+      "to": [
+        { "system": "overcast", "weight": 70 },
+        { "system": "clear_sky", "weight": 15 },
+        { "system": "frontal_passage", "weight": 10 },
+        { "system": "snow_system", "weight": 5 }
+      ],
+      "min_slots": 2,
+      "max_slots": 6
+    },
+    {
+      "from": "frontal_passage",
+      "to": [
+        { "system": "frontal_passage", "weight": 40 },
+        { "system": "overcast", "weight": 60 }
+      ],
+      "min_slots": 2,
+      "max_slots": 5
+    },
+    {
+      "from": "windy",
+      "to": [
+        { "system": "windy", "weight": 50 },
+        { "system": "clear_sky", "weight": 40 },
+        { "system": "overcast", "weight": 10 }
+      ],
+      "min_slots": 2,
+      "max_slots": 4
+    },
+    {
+      "from": "snow_system",
+      "to": [
+        { "system": "snow_system", "weight": 80 },
+        { "system": "overcast", "weight": 20 }
+      ],
+      "min_slots": 3,
+      "max_slots": 8
+    }
+  ]
+}

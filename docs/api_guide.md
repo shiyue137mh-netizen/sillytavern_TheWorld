@@ -30,6 +30,10 @@
 以逗号分隔的列表，返回指定节点下的所有NPC名称。
 - **示例**: `这里有以下人物：{{tw_list_npcs::goldshire}}`
 
+### `{{tw_list_all_locations}}`
+以逗号分隔的列表，返回地图上所有已知地点的 "名称 (id)"。
+- **示例**: `当前世界中已知的所有地点包括：{{tw_list_all_locations}}`
+
 ### `{{tw_node_exists::(node_id_or_name)}}`
 检查具有指定ID或名称的节点是否存在于地图数据中。返回 `true` 或 `false`。这对于防止重复注册地点至关重要。
 - **node_id_or_name**: 节点的ID或名称。
@@ -54,6 +58,10 @@
 ### `{{tw_holiday}}`
 返回当前 `WorldState` 中日期对应的节日名称 (例如, "圣诞节")。如果当天不是节日，则返回一个**空字符串**。
 - **示例**: `今天是{{tw_holiday}}，街上真热闹！`
+
+### `{{tw_weather_forecast}}`
+基于当前的世界状态（季节、天气系统），生成一个未来48小时的天气预报文本。
+- **示例**: `即将到来的天气：\n{{tw_weather_forecast}}`
 
 ## 2. 斜杠指令 (Slash Commands) - 操控世界
 

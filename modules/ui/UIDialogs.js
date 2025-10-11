@@ -421,6 +421,64 @@ export class UIDialogs {
         });
     }
 
+    showNodeInteractionDialog(node, event) {
+        this.removeDialog();
+
+        const $content = this.$('<div class="tw-node-interaction-menu"></div>');
+
+        // --- NEW DYNAMIC BUTTON LOGIC ---
+        const isOutdoorView = this.state.advancedMapPathStack.length === 0;
+        const enterableTypes = ['building', 'dungeon', 'landmark', 'shop', 'house', 'camp'];
+        if (isOutdoorView && enterableTypes.includes(node.type)) {
+            const $buttonEnter = this.$('<button class="has-ripple"><span class="button-icon">🚪</span> 进入</button>');
+            $buttonEnter.on('click', async () => {
+                this.logger.log(`[Map] Entering indoor view for: ${node.name} (${node.id})`);
+                this.state.advancedMapPathStack.push(node.id);
+                await this.renderer.renderMapPane(this.$('#map-nav-pane'));
+                this.removeDialog();
+            });
+            $content.append($buttonEnter);
+        }
+
+        const $buttonGo = this.$('<button class="has-ripple"><span class="button-icon" style="font-size: 1.2em;">➡️</span> 前往</button>');
+        $buttonGo.on('click', () => {
+            const command = `/send {{user}}试图移动到 ${node.name} | /trigger`;
+            this.triggerSlash(command);
+            this.toastr.info(`正在尝试移动到: ${node.name}`);
+            this.removeDialog();
+        });
+        
+        $content.append($buttonGo);
+
+        const $overlay = this.$('<div class="ws-dialog-overlay tw-context-menu-overlay"></div>');
+        const $menu = this.$('<div class="tw-context-menu"></div>');
+
+        $menu.append(`<h4>${node.name}</h4>`);
+        $menu.append($content);
+
+        const menuWidth = 150; 
+        const menuHeight = 100;
+        let top = event.clientY;
+        let left = event.clientX;
+
+        if (left + menuWidth > this.win.innerWidth - 20) {
+            left = event.clientX - menuWidth;
+        }
+        if (top + menuHeight > this.win.innerHeight - 20) {
+            top = event.clientY - menuHeight;
+        }
+        $menu.css({ top: `${top}px`, left: `${left}px` });
+
+        $overlay.append($menu);
+        this.$("body").append($overlay);
+
+        $overlay.on("click", (e) => {
+            if (this.$(e.target).hasClass("ws-dialog-overlay")) {
+                this.removeDialog();
+            }
+        });
+    }
+
     async showThemePreviewDialog(themeId) {
         this.removeDialog();
         try {
@@ -456,7 +514,6 @@ export class UIDialogs {
     }
 
     createDialog(title, content, buttons, options = {}) {
-        // 从timeGradient服务获取当前一致的主题
         const data = this.state.latestWorldStateData || {};
         const theme = this.timeGradient.getThemeForTime({
             timeString: data['时间'] || '12:00',
@@ -467,10 +524,8 @@ export class UIDialogs {
 
         const dialogClass = options.isMap ? 'tw-advanced-map-modal' : 'ws-dialog';
 
-        // 创建dialog并应用正确的class
         const dialog = this.$(`<div class="ws-dialog-overlay ${themeClass}"><div class="${dialogClass}"><h3>${title}</h3><div class="dialog-content"></div><div class="dialog-buttons-wrapper"></div></div></div>`);
         
-        // 将动态背景也应用到dialog上
         dialog.find(`.${dialogClass}`).css('background', theme.background);
 
         dialog.find(".dialog-content").append(content);
@@ -499,7 +554,7 @@ export class UIDialogs {
     }
 
     showMapEditorToolbox($container) {
-        this.hideMapEditorToolbox(); // Ensure no duplicates
+        this.hideMapEditorToolbox(); 
 
         const $toolbox = this.$(`
             <div class="tw-map-editor-toolbox">

@@ -5,13 +5,15 @@
 import { HOLIDAY_DATA } from '../utils/holidays.js';
 
 export class UIRenderer {
-    constructor({ $, config, state, skyThemeController, mapSystem, logger }) {
+    constructor({ $, config, state, skyThemeController, mapSystem, logger, mapViewportManager, mapEditorManager }) {
         this.$ = $;
         this.config = config;
         this.state = state;
         this.skyThemeController = skyThemeController;
         this.mapSystem = mapSystem; // For direct access to map data
         this.logger = logger;
+        this.mapViewportManager = mapViewportManager;
+        this.mapEditorManager = mapEditorManager;
     }
 
     getWeatherIconHtml(weather, period) {
@@ -152,30 +154,16 @@ export class UIRenderer {
         }
     }
 
-    _getNodeZoomThreshold(node) {
-        if (node.zoomThreshold !== undefined && node.zoomThreshold !== null) {
-            return Number(node.zoomThreshold);
-        }
-        // Default logic
-        if (!node.parentId) return 0.2; // Top-level nodes always visible
-        switch (node.type) {
-            case 'region': return 0.5;
-            case 'city': return 1.0;
-            case 'landmark': return 1.5;
-            case 'dungeon': return 1.5;
-            default: return 1.2;
-        }
-    }
-
     async _renderAdvancedMapPane($pane) {
         const { mapDataManager, atlasManager } = this.mapSystem;
-
+        const { advancedMapPathStack } = this.state;
+    
         const $mapContent = this.$('<div id="tw-advanced-map-content"></div>');
         $pane.append($mapContent);
-        
+    
         const $editButton = this.$('<button id="tw-map-edit-toggle-btn" class="has-ripple">编辑地图 ✏️</button>');
         $mapContent.append($editButton);
-
+    
         if (!mapDataManager.isInitialized()) {
              const $placeholder = this.$(`
                 <div class="tw-map-placeholder">
@@ -184,30 +172,120 @@ export class UIRenderer {
                         <span class="button-icon">🗺️</span> 创建地图档案
                     </button>
                     <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
-                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
+                        或者，让AI在故事中通过 <MapUpdate> 标签自动创建。
                     </p>
                 </div>`);
              $mapContent.append($placeholder);
              return;
         }
+    
+        const isIndoor = advancedMapPathStack.length > 0;
+        let nodesToRender = [];
+        let currentBuildingNode = null;
+    
+        if (isIndoor) {
+            this.logger.log('[Map Renderer] Rendering "Indoor" view.');
+            const currentBuildingId = advancedMapPathStack[advancedMapPathStack.length - 1];
+            currentBuildingNode = mapDataManager.nodes.get(currentBuildingId);
+            nodesToRender = Array.from(mapDataManager.nodes.values()).filter(node => node.parentId === currentBuildingId);
+            
+            const $breadcrumbs = this.$('<div class="tw-adv-map-breadcrumbs"></div>');
+            $breadcrumbs.append('<span class="tw-adv-map-breadcrumb-item tw-adv-map-breadcrumb-item-root">世界</span>');
+            
+            let path = [];
+            let currentNode = currentBuildingNode;
+            while(currentNode) {
+                path.unshift(currentNode);
+                currentNode = currentNode.parentId ? mapDataManager.nodes.get(currentNode.parentId) : null;
+            }
 
+            path.forEach((node, index) => {
+                 $breadcrumbs.append('<span>&nbsp;/&nbsp;</span>');
+                 $breadcrumbs.append(
+                    `<span class="tw-adv-map-breadcrumb-item ${index === path.length - 1 ? 'current' : ''}" data-index="${index}">${node.name}</span>`
+                );
+            });
+            $mapContent.append($breadcrumbs);
+    
+        } else {
+            this.logger.log('[Map Renderer] Rendering "Outdoor" view.');
+            nodesToRender = Array.from(mapDataManager.nodes.values());
+        }
+    
         const $viewport = this.$('<div class="tw-map-viewport"></div>');
-        const $canvas = this.$('<div class="tw-map-canvas"></div>');
+        $mapContent.append($viewport);
+
+        const $rulerX = this.$('<div class="tw-map-ruler-x"></div>');
+        const $rulerY = this.$('<div class="tw-map-ruler-y"></div>');
+        const $rulerCorner = this.$('<div class="tw-map-ruler-corner"></div>');
+        $mapContent.append($rulerX, $rulerY, $rulerCorner);
+    
+        const vw = $viewport.width();
+        const vh = $viewport.height();
         
-        // NEW: Smart background loading logic
-        const globalBgUrl = await atlasManager.getBackgroundImage();
-        if (globalBgUrl) {
-            $canvas.css('background-image', `url(${globalBgUrl})`);
-            this.logger.log(`[UIRenderer] Applied global map background from Atlas: ${globalBgUrl}`);
+        // --- DYNAMIC BOUNDS LOGIC ---
+        const isEditMode = this.mapEditorManager.isEditorActive();
+        let canvasSize, coordMapFn;
+
+        if (isEditMode || isIndoor) {
+            this.logger.log(`[Map Renderer] Edit/Indoor mode: using fixed large canvas.`);
+            canvasSize = isIndoor ? 800 : 2400; // Large canvas for editing
+            const logicalMax = isIndoor ? 30 : 1200;
+            coordMapFn = (coord) => (coord / logicalMax) * 100;
+        } else {
+            this.logger.log('[Map Renderer] View mode: using dynamic bounds.');
+            const plottedNodes = nodesToRender.filter(n => n.coords);
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+            if (plottedNodes.length > 0) {
+                plottedNodes.forEach(node => {
+                    const [x, y] = node.coords.split(',').map(Number);
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                });
+            } else { // Default bounds if no nodes
+                minX = 0; maxX = 100; minY = 0; maxY = 100;
+            }
+
+            const boundsWidth = Math.max(10, maxX - minX); // Ensure minimum size
+            const boundsHeight = Math.max(10, maxY - minY);
+            const logicalSize = Math.max(boundsWidth, boundsHeight) * 1.2; // 20% padding
+            
+            const bounds = {
+                minX: minX - (logicalSize - boundsWidth) / 2,
+                minY: minY - (logicalSize - boundsHeight) / 2,
+                size: logicalSize,
+            };
+
+            canvasSize = Math.min(vw, vh) * 2; // Make canvas larger for smoother panning at edges
+            coordMapFn = (coord, axis) => {
+                const val = axis === 'x' ? coord - bounds.minX : coord - bounds.minY;
+                return (val / bounds.size) * 100;
+            };
         }
 
-        const $svgLayer = this.$(`<svg class="tw-map-lines-svg"></svg>`);
-        const $sidebar = this.$('<div class="tw-map-sidebar"><h4>孤立节点</h4><p style="font-size:0.8em; opacity:0.7; padding: 0 10px;">拖拽到地图上以设置坐标。</p></div>');
-        const $sidebarList = this.$('<ul class="tw-sidebar-list"></ul>');
+        const canvasOffsetLeft = (vw - canvasSize) / 2;
+        const canvasOffsetTop = (vh - canvasSize) / 2;
+        const canvasCss = { width: `${canvasSize}px`, height: `${canvasSize}px`, left: `${canvasOffsetLeft}px`, top: `${canvasOffsetTop}px` };
+    
+        const $canvas = this.$('<div class="tw-map-canvas"></div>').css(canvasCss);
         
-        let hasUnplottedNodes = false;
-        
-        // Pre-calculate children for efficiency
+        if (isIndoor && currentBuildingNode && currentBuildingNode.mapImage) {
+            const imageUrl = `${this.config.IMAGE_BASE_URL}${currentBuildingNode.mapImage}`;
+            $canvas.css('background-image', `url(${imageUrl})`);
+            this.logger.log(`[UIRenderer] Applied indoor map background: ${imageUrl}`);
+        } else if (!isIndoor) {
+            const globalBgUrl = await atlasManager.getBackgroundImage();
+            if (globalBgUrl) {
+                $canvas.css('background-image', `url(${globalBgUrl})`);
+                this.logger.log(`[UIRenderer] Applied global map background: ${globalBgUrl}`);
+            }
+        }
+    
+        const $svgLayer = this.$(`<svg class="tw-map-lines-svg"></svg>`).css(canvasCss);
+    
         const nodesWithChildren = new Map();
         mapDataManager.nodes.forEach(node => {
             if (node.parentId && mapDataManager.nodes.has(node.parentId)) {
@@ -217,58 +295,88 @@ export class UIRenderer {
                 nodesWithChildren.get(node.parentId).push(node);
             }
         });
-        
-        mapDataManager.nodes.forEach(node => {
+    
+        nodesToRender.forEach(node => {
             if (node.coords) {
                 const [x, y] = node.coords.split(',').map(Number);
-                const zoomThreshold = this._getNodeZoomThreshold(node);
+                const leftPercent = coordMapFn(x, 'x');
+                const topPercent = coordMapFn(y, 'y');
+                
+                const enterableTypes = ['building', 'dungeon', 'landmark', 'shop', 'house', 'camp'];
+                const isEnterable = enterableTypes.includes(node.type);
 
                 const $pin = this.$('<div>')
                     .addClass('tw-map-pin')
+                    .addClass(`type-${node.type || 'default'}`) // Add type-specific class
+                    .toggleClass('is-enterable', isEnterable) // Add enterable class
                     .attr('data-node-id', node.id)
-                    .attr('data-zoom-threshold', zoomThreshold)
-                    .css({ left: `${x / 10}%`, top: `${y / 10}%` });
-                
-                const children = nodesWithChildren.get(node.id);
-                if (children && children.length > 0) {
-                    $pin.addClass('is-cluster-parent');
-                    const minChildThreshold = Math.min(...children.map(child => this._getNodeZoomThreshold(child)));
-                    $pin.attr('data-min-child-threshold', minChildThreshold);
-                }
+                    .css({ left: `${leftPercent}%`, top: `${topPercent}%` });
 
                 if (node.parentId && mapDataManager.nodes.has(node.parentId)) {
                     $pin.addClass('is-child-node');
                 } else {
                     $pin.addClass('is-parent-node');
                 }
-
+                
                 const $pinLabel = this.$(`<div class="tw-map-pin-label">${node.name}</div>`);
                 $pin.append($pinLabel);
                 $canvas.append($pin);
-            } else {
-                 const $item = this.$(`<li class="tw-sidebar-item" data-node-id="${node.id}">${node.name}</li>`);
-                 $sidebarList.append($item);
-                 hasUnplottedNodes = true;
             }
         });
-
+    
         $viewport.append($canvas, $svgLayer);
-        
-        if (hasUnplottedNodes) {
-             $sidebar.append($sidebarList);
-             $viewport.append($sidebar);
+    
+        if (!isIndoor) {
+            const $sidebar = this.$('<div class="tw-map-sidebar"><h4>孤立节点</h4><p style="font-size:0.8em; opacity:0.7; padding: 0 10px;">拖拽到地图上以设置坐标。</p></div>');
+            const unplottedNodes = Array.from(mapDataManager.nodes.values()).filter(node => !node.coords);
+            if (unplottedNodes.length > 0) {
+                 const nodeMap = new Map(unplottedNodes.map(node => [node.id, { ...node, children: [] }]));
+                const roots = [];
+                nodeMap.forEach(node => {
+                    if (node.parentId && nodeMap.has(node.parentId)) {
+                        nodeMap.get(node.parentId).children.push(node);
+                    } else {
+                        roots.push(node);
+                    }
+                });
+                const sortNodes = (nodes) => {
+                    nodes.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+                    nodes.forEach(node => { if (node.children.length > 0) sortNodes(node.children); });
+                };
+                sortNodes(roots);
+                const buildTreeHtml = (nodes, depth) => {
+                    let html = '';
+                    for (const node of nodes) {
+                        html += `<li class="tw-sidebar-item" data-node-id="${node.id}" style="padding-left: ${10 + depth * 20}px;">${node.name}</li>`;
+                        if (node.children.length > 0) {
+                            html += buildTreeHtml(node.children, depth + 1);
+                        }
+                    }
+                    return html;
+                };
+                const $sidebarTree = this.$('<ul class="tw-sidebar-tree"></ul>');
+                $sidebarTree.html(buildTreeHtml(roots, 0));
+                $sidebar.append($sidebarTree);
+                $viewport.append($sidebar);
+            }
         }
-        
-        $mapContent.append($viewport);
-
-        // Add zoom controls
+    
+        const isPlayerLocationKnown = !!this.state.currentPlayerLocationId;
+        const recenterTitle = isPlayerLocationKnown ? '跳转至当前位置' : '重置地图视图';
         const $zoomControls = this.$(`
             <div class="tw-map-zoom-controls">
                 <button class="tw-map-zoom-btn has-ripple" data-zoom-direction="in" title="放大">+</button>
                 <button class="tw-map-zoom-btn has-ripple" data-zoom-direction="out" title="缩小">-</button>
-            </div>
-        `);
+                <button id="tw-map-recenter-btn" class="tw-map-zoom-btn has-ripple" title="${recenterTitle}">🎯</button>
+                <button id="tw-map-fit-bounds-btn" class="tw-map-zoom-btn has-ripple" title="世界概览 (缩放至所有节点)">🌐</button>
+            </div>`);
         $mapContent.append($zoomControls);
+
+        // Automatically fit bounds after rendering
+        if (this.mapViewportManager) {
+            // Use a short timeout to ensure the DOM is fully painted
+            setTimeout(() => this.mapViewportManager.fitToBounds(), 100);
+        }
     }
 
     _renderLiteMapPane($pane) {
@@ -284,7 +392,7 @@ export class UIRenderer {
                         <span class="button-icon">🗺️</span> 创建地图档案
                     </button>
                     <p class="tw-notice" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">
-                        或者，让AI在故事中通过 &lt;MapUpdate&gt; 标签自动创建。
+                        或者，让AI在故事中通过 <MapUpdate> 标签自动创建。
                     </p>
                 </div>`);
              return;

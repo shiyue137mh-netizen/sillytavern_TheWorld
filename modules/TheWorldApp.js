@@ -1,3 +1,5 @@
+
+
 /**
  * The World - Main Application Class
  * @description Orchestrates the initialization and communication of all modules.
@@ -21,6 +23,7 @@ import { CommandProcessor } from './core/CommandProcessor.js';
 import { MapSystem } from './map_system/index.js';
 import { MacroManager } from './api/MacroManager.js';
 import { CommandManager } from './api/CommandManager.js';
+import { WeatherForecaster } from './weather_system/WeatherForecaster.js';
 
 
 export class TheWorldApp {
@@ -97,6 +100,10 @@ export class TheWorldApp {
         });
         this.dependencies.skyThemeController = this.skyThemeController;
 
+        this.weatherForecaster = new WeatherForecaster(this.dependencies);
+        await this.weatherForecaster.loadPatterns();
+        this.dependencies.weatherForecaster = this.weatherForecaster;
+
         this.dataManager.loadState();
         await this.skyThemeController.init();
         this.introAnimation = new IntroAnimation(this.dependencies);
@@ -104,7 +111,11 @@ export class TheWorldApp {
 
         this.uiController = new UIController({ 
             ...this.dependencies,
-            dataManager: this.dataManager,
+            panelThemeManager: this.panelThemeManager,
+            globalThemeManager: this.globalThemeManager,
+            skyThemeController: this.skyThemeController,
+            audioManager: this.audioManager,
+            dataManager: this.dataManager
         });
         this.dependencies.uiController = this.uiController;
 

@@ -17,7 +17,8 @@ export const TheWorldState = {
     panelLeft: null,
     buttonTop: 10,
     buttonLeft: null,
-    liteMapPathStack: [], // NEW: For lite map navigation state
+    liteMapPathStack: [], // For lite map navigation state
+    advancedMapPathStack: [], // For advanced map navigation state
     currentPlayerLocationId: null, // NEW: For Macro API
 
     // --- Settings State ---

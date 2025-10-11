@@ -93,7 +93,7 @@ export class CommandHandler {
         const tool = {
             name: 'Map.AddNPC',
             displayName: '添加NPC到地点',
-            description: '向一个已知地点添加一个NPC。后台会自动为NPC生成唯一ID。',
+            description: '向一个已知地点添加一个NPC。只需提供NPC的名称，系统会自动为其生成一个唯一的内部ID。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -110,8 +110,9 @@ export class CommandHandler {
                     return 'Error: Invalid NPC name provided.';
                 }
 
-                // Generate a unique ID to handle potential duplicate names.
-                const npcId = npcName.toLowerCase().replace(/[\s\W]/g, '_') + `_${Math.random().toString(36).substring(2, 7)}`;
+                // Generate a unique, short, random ID that is unrelated to the name
+                // to avoid confusing the AI.
+                const npcId = Math.random().toString(36).substring(2, 8);
                 const npcObject = { id: npcId, name: npcName.trim() };
 
                 await this.mapDataManager.addNpcToLocation(node.id, npcObject);
