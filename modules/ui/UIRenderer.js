@@ -2,9 +2,9 @@
  * The World - UI Renderer
  * @description Responsible for generating HTML content for the UI panes.
  */
-import { HOLIDAY_DATA } from '../utils/holidays.js';
-import { Icons, getIcon } from '../utils/icons.js';
 import { getAnimatedWeatherIcon } from '../utils/animatedWeatherIcons.js';
+import { HOLIDAY_DATA } from '../utils/holidays.js';
+import { getIcon } from '../utils/icons.js';
 
 export class UIRenderer {
     constructor({ $, config, state, skyThemeController, mapSystem, logger, mapViewportManager, globalThemeManager }) {
@@ -90,8 +90,13 @@ export class UIRenderer {
 
         if (modernMatch) {
             const [, year, month, day, time] = modernMatch;
+            const explicitWeekdayMatch = timeString.match(/(?:星期|周)[日一二三四五六天]/);
+            const explicitWeekday = explicitWeekdayMatch
+                ? explicitWeekdayMatch[0].replace('周', '星期').replace('星期天', '星期日')
+                : null;
             const date = new Date(year, month - 1, day);
-            const weekday = `星期${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`;
+            const computedWeekday = `星期${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`;
+            const weekday = explicitWeekday || computedWeekday;
             weekdayHtml = `<div class="ws-weekday">${weekday}</div>`;
 
             const holidayKey = `${month}-${day}`;
@@ -144,7 +149,7 @@ export class UIRenderer {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="ws-details-right">
                     <div class="ws-weather-interact" title="改变天气">
                         <div class="ws-weather-box">
@@ -159,7 +164,7 @@ export class UIRenderer {
                 <div class="ws-secondary-info">
                      ${holidayHtml}
                 </div>
-                
+
                 <div class="ws-hero-section">
                     <!-- Season Hero -->
                     <!-- Season Hero Removed -->
@@ -177,7 +182,7 @@ export class UIRenderer {
                     ${(data['插图'] && !this.state.isDynamicIllustrationBgEnabled) ? `
                     <div class="ws-illustration-item">
                         <a href="${this.config.IMAGE_BASE_URL}${data['插图']}" target="_blank" rel="noopener noreferrer">
-                            <img src="${this.config.IMAGE_BASE_URL}${data['插图']}" 
+                            <img src="${this.config.IMAGE_BASE_URL}${data['插图']}"
                                  alt="${data['插图']}"
                                  onerror="this.parentElement.parentElement.style.display='none'">
                         </a>
@@ -759,16 +764,16 @@ export class UIRenderer {
                         ${getIcon('save')} 初始化地图
                     </button>
                 `}
-                
+
                 <button id="reset-ui-btn" class="tw-action-btn has-ripple">
                     ${getIcon('move')} 重置UI位置
                 </button>
-                
+
                 <button id="clear-all-data-btn" class="tw-action-btn danger has-ripple" style="grid-column: span 2;">
                     ${getIcon('trash2')} 清空所有存储
                 </button>
             </div>
-            
+
             ${this.mapSystem.mapDataManager.isInitialized() ? `
                 <div style="margin: 10px 5px 0 5px; font-size: 0.8em; opacity: 0.6; text-align: center;">
                     当前地图: ${this.mapSystem.mapDataManager.bookName}

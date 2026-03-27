@@ -39,7 +39,7 @@ export class UIEventManager {
                     z-index: 10001 !important;
                 }
             `;
-            this.injectionEngine.injectCss(this.config.SKYGAZING_STYLE_ID, css);
+            this.injectione1Engine.injectCss(this.config.SKYGAZING_STYLE_ID, css);
             $body.addClass('the-world-skygazing-mode');
         } else {
             this.injectionEngine.removeCss(this.config.SKYGAZING_STYLE_ID);
@@ -79,7 +79,7 @@ export class UIEventManager {
                 this.longPressTimer = setTimeout(() => {
                     this.toggleSkygazingMode();
                     this.longPressTimer = null;
-                }, 5000);
+                }, 2000);
             })
             .on('mouseup.tw_toggle touchend.tw_toggle', (e) => {
                 if (this.longPressTimer === null) {

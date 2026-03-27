@@ -44,14 +44,6 @@ export class GlobalThemeManager {
     updateTheme() {
         if (!this.isActive) return;
 
-        // NEW: Check for mobile view and deactivate if necessary
-        if (this.$('body').hasClass('tw-is-mobile-view')) {
-            this.logger.log('[全局主题] 检测到移动端视图，暂时禁用背景。');
-            this._removeBgLayers();
-            this.injectionEngine.removeCss(this.config.GLOBAL_THEME_STYLE_ID);
-            return;
-        }
-
         this.logger.log('正在更新全局主题...');
 
         const data = this.state.latestWorldStateData || {};
@@ -68,10 +60,32 @@ export class GlobalThemeManager {
         if (!this.bgLayer1 || !this.win.document.body.contains(this.bgLayer1)) {
             const $body = this.$('body');
             const $container = this.$('<div>').addClass('tw-global-theme-container').css({
-                position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -10, pointerEvents: 'none'
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: -2,
+                pointerEvents: 'none'
             });
-            this.bgLayer1 = this.$('<div>').addClass('tw-global-bg-layer').css('opacity', '1').get(0);
-            this.bgLayer2 = this.$('<div>').addClass('tw-global-bg-layer').css('opacity', '0').get(0);
+            this.bgLayer1 = this.$('<div>').addClass('tw-global-bg-layer').css({
+                opacity: '1',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh'
+            }).get(0);
+            this.bgLayer2 = this.$('<div>').addClass('tw-global-bg-layer').css({
+                opacity: '0',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh'
+            }).get(0);
             $container.append(this.bgLayer1, this.bgLayer2);
             $body.prepend($container);
         }
@@ -97,6 +111,9 @@ export class GlobalThemeManager {
             this.currentBackground = newBackground;
             this.currentBrightness = newBrightness;
 
+            const isMobile = this.$('body').hasClass('tw-is-mobile-view');
+            const fadeDuration = isMobile ? '1.2s' : '9s';
+
             // Immediately apply to both layers to prevent any flash
             this.bgLayer1.style.transition = 'none';
             this.bgLayer2.style.transition = 'none';
@@ -109,8 +126,8 @@ export class GlobalThemeManager {
 
             // Use a timeout to re-enable transitions after the immediate paint
             setTimeout(() => {
-                if (this.bgLayer1) this.bgLayer1.style.transition = 'opacity 9s ease-in-out';
-                if (this.bgLayer2) this.bgLayer2.style.transition = 'opacity 9s ease-in-out';
+                if (this.bgLayer1) this.bgLayer1.style.transition = `opacity ${fadeDuration} ease-in-out`;
+                if (this.bgLayer2) this.bgLayer2.style.transition = `opacity ${fadeDuration} ease-in-out`;
             }, 50);
             return;
         }
@@ -137,12 +154,29 @@ export class GlobalThemeManager {
     }
 
     _applyThemeStyles() {
+        const isMobile = this.$('body').hasClass('tw-is-mobile-view');
+        const fadeDuration = isMobile ? '1.2s' : '9s';
+        const bgSize = isMobile ? 'cover' : '200% 200%';
+        const bgAnimation = isMobile ? 'none' : 'bg-pan 45s linear infinite alternate';
+
         let css = `
+            .tw-global-theme-container {
+                position: fixed;
+                inset: 0;
+                width: 100vw;
+                width: 100dvw;
+                height: 100vh;
+                height: 100dvh;
+                pointer-events: none;
+                z-index: -2;
+            }
             .tw-global-bg-layer {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                transition: opacity 9s ease-in-out;
-                background-size: 200% 200%;
-                animation: bg-pan 45s linear infinite alternate;
+                z-index: -2;
+                transition: opacity ${fadeDuration} ease-in-out;
+                background-size: ${bgSize};
+                animation: ${bgAnimation};
+                will-change: opacity;
             }
             @keyframes bg-pan {
                 0% { background-position: 0% 0%; }
@@ -155,16 +189,20 @@ export class GlobalThemeManager {
                 body { background: transparent !important; }
                 #chat { background: transparent !important; }
                 #chat_background { background: transparent !important; }
-                .mes_content { 
+                .mes_content {
                     background-color: rgba(20, 22, 28, 0.6) !important;
-                    backdrop-filter: blur(4px);
+                    backdrop-filter: ${isMobile ? 'none' : 'blur(4px)'};
+                    -webkit-backdrop-filter: ${isMobile ? 'none' : 'blur(4px)'};
                 }
                 :root { --SmartThemeBodyColor: #f0f0f0 !important; }
             `;
         } else {
             css += `
-                body { background: revert !important; }
-             `;
+                body {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                }
+            `;
         }
 
         this.injectionEngine.injectCss(this.config.GLOBAL_THEME_STYLE_ID, css);
