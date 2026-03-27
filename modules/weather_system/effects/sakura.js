@@ -56,6 +56,7 @@ export const SakuraFX = {
     targetParticles: 80,
     targetRenderPasses: 1,
     renderPasses: 5,
+    windStrength: 0,
 
     renderSpec: { 'width': 0, 'height': 0, 'aspect': 1, 'array': new Float32Array(3), 'halfWidth': 0, 'halfHeight': 0, 'halfArray': new Float32Array(3), 'pointSize': { 'min': 0, 'max': 0 },
         'setSize': function(w, h) { this.width = w; this.height = h; this.aspect = this.width / this.height; this.array[0] = this.width; this.array[1] = this.height; this.array[2] = this.aspect; this.halfWidth = Math.floor(w / 2); this.halfHeight = Math.floor(h / 2); this.halfArray[0] = this.halfWidth; this.halfArray[1] = this.halfHeight; this.halfArray[2] = this.halfWidth / this.halfHeight; }
@@ -170,6 +171,7 @@ export const SakuraFX = {
         if (this.animating) this.stop();
 
         this.densityMode = options.density || 'dense';
+        this.windStrength = Math.max(0, Number(options.windStrength ?? 0));
         this.canvas = canvas;
         try {
             // Clean up any previous GL context to prevent errors on re-init
@@ -336,7 +338,7 @@ export const SakuraFX = {
         for(let i = 0; i < this.pointFlower.numFlowers; i++) {
             let prtcl = this.pointFlower.particles[i];
             if (i < activeCount) {
-                prtcl.update(this.timeInfo.delta, this.timeInfo.elapsed);
+                prtcl.update(this.timeInfo.delta, this.timeInfo.elapsed, this.windStrength);
                 if(Math.abs(prtcl.position[0]) - prtcl.size * 0.5 > limit[0]) { prtcl.position[0] > 0 ? prtcl.position[0] -= limit[0] * 2.0 : prtcl.position[0] += limit[0] * 2.0; }
                 if(prtcl.position[1] < -limit[1]) { prtcl.position[1] = limit[1] + Math.random() * 5.0; prtcl.position[0] = symmetryrand() * limit[0]; }
                 if(Math.abs(prtcl.position[2]) - prtcl.size * 0.5 > limit[2]) { prtcl.position[2] > 0 ? prtcl.position[2] -= limit[2] * 2.0 : prtcl.position[2] += limit[2] * 2.0; }
@@ -388,31 +390,65 @@ export const SakuraFX = {
         this.pointFlower.program = this.createShader(this.shaders.sakura_point_vsh, this.shaders.sakura_point_fsh, ['uProjection', 'uModelview', 'uResolution', 'uOffset', 'uDOF', 'uFade'], ['aPosition', 'aEuler', 'aMisc']);
         this.pointFlower.offset = new Float32Array([0, 0, 0]); this.pointFlower.fader = Vector3.create(0.0, 10.0, 0.0);
 
+        const windScale = Math.min(1, Math.max(0, this.windStrength) / 2);
         if (this.densityMode === 'dense') {
-            this.pointFlower.numFlowers = 500;
-            this.pointFlower.activationRate = 50; // Faster activation for burst
+            // Wind affects amount, but petals remain gentler/slower than rain/snow.
+            this.pointFlower.numFlowers = Math.round(420 + windScale * 120);
+            this.pointFlower.activationRate = 28 + windScale * 18;
             this.renderPasses = 5;
         } else { // sparse
-            this.pointFlower.numFlowers = 80;
-            this.pointFlower.activationRate = 10;
+            this.pointFlower.numFlowers = Math.round(70 + windScale * 24);
+            this.pointFlower.activationRate = 7 + windScale * 4;
             this.renderPasses = 1;
         }
 
         this.pointFlower.particles = new Array(this.pointFlower.numFlowers);
         this.pointFlower.dataArray = new Float32Array(this.pointFlower.numFlowers * (3 + 3 + 2)); this.pointFlower.buffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointFlower.buffer); this.gl.bufferData(this.gl.ARRAY_BUFFER, this.pointFlower.dataArray, this.gl.DYNAMIC_DRAW); this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null); this.unuseShader(this.pointFlower.program);
-        const BlossomParticle = function(){ this.velocity=[0,0,0]; this.rotation=[0,0,0]; this.position=[0,0,0]; this.euler=[0,0,0]; this.size=1.0; };
-        BlossomParticle.prototype.update = function(dt, et){ this.position[0]+=this.velocity[0]*dt; this.position[1]+=this.velocity[1]*dt; this.position[2]+=this.velocity[2]*dt; this.euler[0]+=this.rotation[0]*dt; this.euler[1]+=this.rotation[1]*dt; this.euler[2]+=this.rotation[2]*dt; };
+        const BlossomParticle = function(){ this.velocity=[0,0,0]; this.baseVelocity=[0,0,0]; this.rotation=[0,0,0]; this.position=[0,0,0]; this.euler=[0,0,0]; this.size=1.0; this.windDriftPhase=Math.random()*Math.PI*2.0; this.windDriftFreq=0.6+Math.random()*1.2; this.windDriftAmp=0.12+Math.random()*0.3; this.microTurb=0.05+Math.random()*0.12; this.spiralPhase=Math.random()*Math.PI*2.0; this.spiralFreq=0.9+Math.random()*1.4; this.spiralAmp=0.08+Math.random()*0.2; this.loopBurstAmp=0.35+Math.random()*0.45; this.spinClamp=0.38+Math.random()*0.22; };
+        BlossomParticle.prototype.update = function(dt, et, windStrengthNorm = 0){
+            const windWave = Math.sin(et * this.windDriftFreq + this.windDriftPhase);
+            const crossWave = Math.cos(et * (this.windDriftFreq * 0.7) + this.windDriftPhase * 0.6);
+            const spiral = Math.sin(et * this.spiralFreq + this.spiralPhase);
+            const loopBurst = Math.max(0, Math.sin(et * 0.42 + this.spiralPhase * 0.5));
+
+            const windFactor = Math.min(1.6, 0.5 + windStrengthNorm * 0.55);
+            const forwardFloor = Math.max(0.15, this.baseVelocity[0] * (0.52 + windStrengthNorm * 0.12));
+            const forwardBias = this.baseVelocity[0] + (windWave * this.windDriftAmp + loopBurst * this.loopBurstAmp) * 0.45 * windFactor;
+            const vx = Math.max(forwardFloor, forwardBias);
+
+            const lateralCurve = (crossWave * this.windDriftAmp * 0.75 + spiral * this.spiralAmp * (0.45 + loopBurst * 0.55)) * windFactor;
+            const vz = this.baseVelocity[2] + lateralCurve + Math.sin(et * 0.9 + this.windDriftPhase) * this.microTurb * (0.85 + windStrengthNorm * 0.25);
+            const descentScale = 0.82 + Math.min(0.28, windStrengthNorm * 0.12);
+            const vy = this.baseVelocity[1] * descentScale * (1.0 - 0.06 * loopBurst * Math.min(1, windStrengthNorm));
+
+            this.position[0] += vx * dt;
+            this.position[1] += vy * dt;
+            this.position[2] += vz * dt;
+
+            const rawSpinBoost = loopBurst * (0.2 + windStrengthNorm * 0.24);
+            const spinBoost = Math.min(this.spinClamp, rawSpinBoost);
+            this.euler[0] += (this.rotation[0] + windWave * 0.08 + spiral * 0.09 + spinBoost) * dt;
+            this.euler[1] += (this.rotation[1] + crossWave * 0.06 - spiral * 0.07) * dt;
+            this.euler[2] += (this.rotation[2] + lateralCurve * 0.10 + spinBoost * 0.55) * dt;
+        };
         for(let i = 0; i < this.pointFlower.numFlowers; i++) this.pointFlower.particles[i] = new BlossomParticle();
     },
     initPointFlowers: function() {
         this.pointFlower.area = Vector3.create(20.0, 20.0, 20.0); this.pointFlower.area.x = this.pointFlower.area.y * this.renderSpec.aspect;
         this.pointFlower.fader.x = 10.0; this.pointFlower.fader.y = this.pointFlower.area.z; this.pointFlower.fader.z = 0.1;
-        const PI2 = Math.PI * 2.0, symmetryrand = () => Math.random() * 2.0 - 1.0; const windStrength = 1.5;
+        const PI2 = Math.PI * 2.0, symmetryrand = () => Math.random() * 2.0 - 1.0;
+        const windStrengthNorm = Math.max(0, this.windStrength);
+        const windStrength = 1.05 + windStrengthNorm * 0.42;
         for(let i = 0; i < this.pointFlower.numFlowers; i++) {
-            let p = this.pointFlower.particles[i]; let vy = -(Math.random() * 1.0 + 0.5); let vx = (symmetryrand() * 0.7) + windStrength; let vz = symmetryrand() * 0.5;
-            let v = Vector3.create(vx, vy, vz); Vector3.normalize(v); let s = 1.5 + Math.random(); p.velocity = [v.x*s, v.y*s, v.z*s];
-            const rotationSpeedFactor = 1.5; p.rotation = [symmetryrand()*PI2*0.5*rotationSpeedFactor, symmetryrand()*PI2*0.5*rotationSpeedFactor, symmetryrand()*PI2*0.5*rotationSpeedFactor];
+            let p = this.pointFlower.particles[i];
+            const windFallBoost = Math.min(0.18, windStrengthNorm * 0.08);
+            let vy = -((0.28 + Math.random() * 0.44) + windFallBoost);
+            let vx = windStrength + Math.random() * 0.9 + symmetryrand() * 0.2;
+            vx = Math.max(0.35, vx); // keep prevailing direction; avoid reverse flow
+            let vz = symmetryrand() * 0.55;
+            let v = Vector3.create(vx, vy, vz); Vector3.normalize(v); let s = 1.5 + Math.random(); p.baseVelocity = [v.x*s, v.y*s, v.z*s]; p.velocity = [p.baseVelocity[0], p.baseVelocity[1], p.baseVelocity[2]];
+            const rotationSpeedFactor = Math.max(0.7, 1.18 - windStrengthNorm * 0.18); p.rotation = [symmetryrand()*PI2*0.5*rotationSpeedFactor, symmetryrand()*PI2*0.5*rotationSpeedFactor, symmetryrand()*PI2*0.5*rotationSpeedFactor];
             p.position = [symmetryrand()*this.pointFlower.area.x, symmetryrand()*this.pointFlower.area.y, symmetryrand()*this.pointFlower.area.z]; p.euler = [Math.random()*PI2, Math.random()*PI2, Math.random()*PI2];
             p.size = 0.9 + Math.random() * 0.1;
         }
@@ -454,5 +490,8 @@ export const SakuraFX = {
         return retsh;
     },
     useShader: function(prog) { if (!prog) return; this.gl.useProgram(prog); if (!prog.attributes) return; for(let attr in prog.attributes) { this.gl.enableVertexAttribArray(prog.attributes[attr]); } },
-    unuseShader: function(prog) { if (!prog) return; if (!prog.attributes) return; for(let attr in prog.attributes) { this.gl.disableVertexAttribArray(prog.attributes[attr]); } this.gl.useProgram(null); }
+    unuseShader: function(prog) { if (!prog) return; if (!prog.attributes) return; for(let attr in prog.attributes) { this.gl.disableVertexAttribArray(prog.attributes[attr]); } this.gl.useProgram(null); },
+    setWindStrength: function(strength = 0) {
+        this.windStrength = Math.max(0, Number(strength) || 0);
+    }
 };

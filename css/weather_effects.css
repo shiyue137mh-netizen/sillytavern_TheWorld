@@ -189,35 +189,101 @@
     }
 }
 @keyframes fall-angled-light {
-    from {
+    0% {
         transform: translateY(-10vh) translateX(0)
     }
-    to {
-        transform: translateY(110vh) translateX(25vw)
+    24% {
+        transform: translateY(18vh) translateX(calc(8vw * var(--tw-curve-a, 0.5) + var(--tw-gust-x, 0vw) * 0.22))
+    }
+    58% {
+        transform: translateY(62vh) translateX(calc(16vw * var(--tw-curve-b, 0.4) + var(--tw-gust-x, 0vw) * 0.5))
+    }
+    84% {
+        transform: translateY(92vh) translateX(calc(22vw * var(--tw-curve-c, 0.3) + var(--tw-gust-x, 0vw) * 0.7))
+    }
+    100% {
+        transform: translateY(110vh) translateX(calc(26vw + var(--tw-gust-x, 0vw)))
     }
 }
 @keyframes fall-angled-strong {
-    from {
+    0% {
         transform: translateY(-10vh) translateX(0)
     }
-    to {
-        transform: translateY(110vh) translateX(40vw)
+    20% {
+        transform: translateY(16vh) translateX(calc(12vw * var(--tw-curve-a, 0.5) + var(--tw-gust-x, 0vw) * 0.24))
+    }
+    52% {
+        transform: translateY(56vh) translateX(calc(26vw * var(--tw-curve-b, 0.4) + var(--tw-gust-x, 0vw) * 0.58))
+    }
+    82% {
+        transform: translateY(90vh) translateX(calc(34vw * var(--tw-curve-c, 0.3) + var(--tw-gust-x, 0vw) * 0.78))
+    }
+    100% {
+        transform: translateY(110vh) translateX(calc(42vw + var(--tw-gust-x, 0vw)))
     }
 }
 @keyframes fall-sway-rotate-local {
     0% {
-        transform: translateY(-10vh) translateX(0) rotate(0)
+        transform: translate3d(0, -10vh, 0) rotate(0deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    18% {
+        transform: translate3d(calc(7vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-a, 0.55)), 24vh, 0) rotate(130deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    42% {
+        transform: translate3d(calc(15vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-b, 0.45)), 70vh, 0) rotate(340deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    70% {
+        transform: translate3d(calc(22vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-c, 0.35)), 123vh, 0) rotate(590deg) scale(var(--tw-wind-drift-scale, 1));
     }
     100% {
-        transform: translateY(110vh) translateX(25vw) rotate(720deg)
+        transform: translate3d(calc(28vw * var(--tw-wind-drift-scale, 1)), 180vh, 0) rotate(780deg) scale(var(--tw-wind-drift-scale, 1));
     }
 }
 @keyframes fall-sway-rotate-global {
     0% {
-        transform: translateY(-10vh) translateX(0) rotate(0)
+        transform: translate3d(0, -10vh, 0) rotate(0deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    20% {
+        transform: translate3d(calc(26vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-a, 0.55)), 36vh, 0) rotate(150deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    50% {
+        transform: translate3d(calc(62vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-b, 0.45)), 105vh, 0) rotate(440deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    78% {
+        transform: translate3d(calc(92vw * var(--tw-wind-drift-scale, 1) * var(--tw-curve-c, 0.35)), 170vh, 0) rotate(670deg) scale(var(--tw-wind-drift-scale, 1));
     }
     100% {
-        transform: translateY(110vh) translateX(110vw) rotate(720deg)
+        transform: translate3d(calc(118vw * var(--tw-wind-drift-scale, 1)), 220vh, 0) rotate(820deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+}
+
+@keyframes fall-sway-rotate-local-reverse {
+    0% {
+        transform: translateY(-10vh) translateX(0) rotate(0) scale(var(--tw-wind-drift-scale, 1));
+    }
+    25% {
+        transform: translateY(22vh) translateX(calc(-6vw * var(--tw-wind-drift-scale, 1))) rotate(-180deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    60% {
+        transform: translateY(68vh) translateX(calc(-12vw * var(--tw-wind-drift-scale, 1))) rotate(-420deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    100% {
+        transform: translateY(110vh) translateX(calc(-16vw * var(--tw-wind-drift-scale, 1))) rotate(-700deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+}
+
+@keyframes fall-sway-rotate-global-reverse {
+    0% {
+        transform: translateY(-10vh) translateX(0) rotate(0) scale(var(--tw-wind-drift-scale, 1));
+    }
+    25% {
+        transform: translateY(24vh) translateX(calc(-18vw * var(--tw-wind-drift-scale, 1))) rotate(-180deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    62% {
+        transform: translateY(72vh) translateX(calc(-36vw * var(--tw-wind-drift-scale, 1))) rotate(-430deg) scale(var(--tw-wind-drift-scale, 1));
+    }
+    100% {
+        transform: translateY(110vh) translateX(calc(-54vw * var(--tw-wind-drift-scale, 1))) rotate(-700deg) scale(var(--tw-wind-drift-scale, 1));
     }
 }
 @keyframes shooting-star-anim {

@@ -2,14 +2,14 @@
  * The World - UI Controller (Conductor)
  * @description Initializes and orchestrates all UI sub-modules.
  */
-import { UIRenderer } from './UIRenderer.js';
-import { UIDialogs } from './UIDialogs.js';
-import { UIPanelManager } from './UIPanelManager.js';
-import { UIEventManager } from './UIEventManager.js';
-import { TimeAnimator } from './TimeAnimator.js';
-import { MapViewportManager } from './MapViewportManager.js';
+import { Icons } from '../utils/icons.js';
 import { MapEditorManager } from './MapEditorManager.js';
-import { Icons, getIcon } from '../utils/icons.js';
+import { MapViewportManager } from './MapViewportManager.js';
+import { TimeAnimator } from './TimeAnimator.js';
+import { UIDialogs } from './UIDialogs.js';
+import { UIEventManager } from './UIEventManager.js';
+import { UIPanelManager } from './UIPanelManager.js';
+import { UIRenderer } from './UIRenderer.js';
 
 export class UIController {
     constructor(dependencies) {
@@ -160,36 +160,59 @@ export class UIController {
         }
     }
 
-    async updateAllPanes() {
-        this.logger.log('正在更新所有面板内容...');
-        const $wsPane = this.$('#world-state-pane').empty();
-        const $mapPane = this.$('#map-nav-pane').empty();
-        const $settingsPane = this.$('#settings-pane').empty();
+    _renderWorldStateFallback($wsPane) {
+        this.logger.log('无世界状态数据，显示等待信息。');
+        this.timeAnimator.stop();
+        this.panelThemeManager.weatherSystem.clearAllWeatherEffects(true);
+        this.panelThemeManager.applyThemeAndEffects({});
+        $wsPane.empty().html('<p class="tw-notice">等待世界状态数据...</p>');
+    }
+
+    async updateWorldStatePane() {
+        const $wsPane = this.$('#world-state-pane');
+        if (!$wsPane.length) return;
 
         this.timeAnimator.stop();
 
         if (this.state.latestWorldStateData) {
-            this.logger.log('检测到世界状态数据，正在渲染...');
+            this.logger.log('检测到世界状态数据，正在更新世界状态面板...');
+            $wsPane.empty();
             this.panelThemeManager.applyThemeAndEffects(this.state.latestWorldStateData);
             this.renderer.renderWorldStatePane($wsPane, this.state.latestWorldStateData);
             if (this.state.latestWorldStateData['时间']) {
                 this.timeAnimator.start(this.state.latestWorldStateData['时间']);
             }
-        } else {
-            this.logger.log('无世界状态数据，显示等待信息。');
-            this.panelThemeManager.weatherSystem.clearAllWeatherEffects(true);
-            this.panelThemeManager.applyThemeAndEffects({}); // Apply default theme to button and panel
-            $wsPane.html('<p class="tw-notice">等待世界状态数据...</p>');
+            return;
         }
 
-        // Render map and settings panes regardless of world state
+        this._renderWorldStateFallback($wsPane);
+    }
+
+    async updateMapPane() {
+        const $mapPane = this.$('#map-nav-pane');
+        if (!$mapPane.length) return;
+
+        $mapPane.empty();
         await this.renderer.renderMapPane($mapPane);
-        this.renderer.renderSettingsPane($settingsPane);
 
         if (this.state.mapMode === 'advanced') {
             this.eventManager.mapViewportManager.updateMapOverlays();
         }
+    }
 
+    updateSettingsPane() {
+        const $settingsPane = this.$('#settings-pane');
+        if (!$settingsPane.length) return;
+
+        $settingsPane.empty();
+        this.renderer.renderSettingsPane($settingsPane);
+    }
+
+    async updateAllPanes() {
+        this.logger.log('正在更新所有面板内容...');
+        await this.updateWorldStatePane();
+        await this.updateMapPane();
+        this.updateSettingsPane();
         this.logger.log('所有面板内容更新完成。');
     }
 }

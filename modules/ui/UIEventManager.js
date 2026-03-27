@@ -124,7 +124,7 @@ export class UIEventManager {
         $panel.on('click.tw_audio', '#tw-audio-toggle', () => {
             this.state.isAudioEnabled = !this.state.isAudioEnabled;
             this.audioManager.setMasterEnabled(this.state.isAudioEnabled);
-            this.dataManager.saveState();
+            this.dataManager.saveSettingsSoon();
             this.ui.updateAudioToggleIcon();
         });
 
@@ -200,7 +200,7 @@ export class UIEventManager {
             const key = keyMap[e.target.id];
             if (key) {
                 this.state[key] = e.target.checked;
-                this.dataManager.saveState();
+                this.dataManager.saveSettingsSoon();
 
                 if (key === 'isGlobalThemeEngineEnabled') {
                     const isEnabled = this.state.isGlobalThemeEngineEnabled;
@@ -233,7 +233,7 @@ export class UIEventManager {
             this.state.mapMode = newMode;
             this.state.liteMapPathStack = [];
             this.state.advancedMapPathStack = [];
-            this.dataManager.saveState();
+            this.dataManager.saveSettingsSoon();
             await this.renderer.renderMapPane(this.$('#map-nav-pane'));
             $button.addClass('active').siblings().removeClass('active');
         });
@@ -285,11 +285,11 @@ export class UIEventManager {
             }
         });
 
-        $panel.on('change.tw_settings', '#settings-pane input[type="range"]', () => this.dataManager.saveState());
+        $panel.on('change.tw_settings', '#settings-pane input[type="range"]', () => this.dataManager.saveSettingsSoon());
         $panel.on('change.tw_settings', '#font-size-select', (e) => {
             const newSize = this.$(e.target).val();
             this.state.fontSize = newSize;
-            this.dataManager.saveState();
+            this.dataManager.saveSettingsSoon();
             this.$(`#${this.config.PANEL_ID}`).css('--tw-font-size', newSize);
             this.logger.log(`字体大小已更改为: ${newSize}`);
         });
@@ -320,7 +320,7 @@ export class UIEventManager {
             this.state.panelHeight = defaultHeight;
             this.state.panelTop = defaultTop;
             this.state.panelLeft = defaultLeft;
-            this.dataManager.saveState();
+            this.dataManager.saveSettingsSoon();
             this.panelManager.checkPanelWidth();
         });
     }

@@ -26,7 +26,10 @@ export class WeatherSystem {
         this.weatherEffects = {
             current: { type: null, variant: null, density: 0 },
             intervalId: null,
-            particleClass: ''
+            particleClass: '',
+            windPulseIntervalId: null,
+            windPulseResetTimeout: null,
+            windPulseTarget: null,
         };
         this.milkyWayTimeout = null;
     }
@@ -47,7 +50,12 @@ export class WeatherSystem {
         const $bgFxTarget = this.state.isFxGlobal ? $globalBgFxLayer : $localFxContainer;
 
         const density = this.getWeatherDensity(safeWeatherString);
-        const isRaining = safeWeatherString.includes('雨') && !safeWeatherString.includes('雪');
+        const isRaining = safeWeatherString.includes('雨')
+            && !safeWeatherString.includes('雪')
+            && !safeWeatherString.includes('无雨')
+            && !safeWeatherString.includes('停雨')
+            && !safeWeatherString.includes('雨停')
+            && !safeWeatherString.includes('不下雨');
         const isSnowing = safeWeatherString.includes('雪');
         const isWindy = density.wind > 0;
         const isFoggy = safeWeatherString.includes('雾');
@@ -109,17 +117,69 @@ export class WeatherSystem {
             }
         }
 
+        const shouldWindPulse = this.state.weatherFxEnabled
+            && isWindy
+            && (isRaining || isSnowing || (!isCloudy && !shouldShowSakura));
+        if (shouldWindPulse) {
+            this._startWindPulse($fgFxTarget, density.wind);
+        } else {
+            this._stopWindPulse($fgFxTarget);
+        }
+
         let newEffect = { type: null, variant: null, density: 0, targetCount: 0, particleClass: null, creator: null, interval: 0 };
         if (this.state.weatherFxEnabled) {
             if (isRaining) {
                 newEffect = { type: 'rain', variant: isWindy ? 'windy' : 'normal', density: density.count, particleClass: 'particle-wrapper', targetCount: Math.round(18 + density.count * 16), interval: 260 / density.speed,
-                    creator: () => { const p = this.$('<div class="raindrop"></div>').css('opacity', Math.random()*.6+.2); if(isWindy) p.addClass(density.wind>=1.5?'slanted-strong':'slanted-light'); const w = this._bindParticleLifecycle(this._createParticleWrapper(density, 'rain'), 'rain').append(p); $fgFxTarget.append(w); } };
+                    creator: () => {
+                        const p = this.$('<div class="raindrop"></div>').css('opacity', Math.random() * .6 + .2);
+                        if (isWindy) p.addClass(density.wind >= 1.5 ? 'slanted-strong' : 'slanted-light');
+                        const w = this._bindParticleLifecycle(this._createParticleWrapper(density, 'rain'), 'rain').append(p);
+                        w.css({
+                            '--tw-curve-a': (0.18 + Math.random() * 0.52).toFixed(3),
+                            '--tw-curve-b': (0.12 + Math.random() * 0.46).toFixed(3),
+                            '--tw-curve-c': (0.08 + Math.random() * 0.34).toFixed(3)
+                        });
+                        $fgFxTarget.append(w);
+                    } };
             } else if (isSnowing) {
                 newEffect = { type: 'snow', variant: isWindy ? 'windy' : 'normal', density: density.count, particleClass: 'particle-wrapper', targetCount: Math.round(14 + density.count * 12), interval: 320 / density.speed,
-                    creator: () => { const size = `${2 + Math.random() * 3}px`; const p = this.$('<div class="snowflake"></div>').css({ width: size, height: size, opacity: 0.5 + Math.random() * 0.5 }); const w = this._bindParticleLifecycle(this._createParticleWrapper(density, 'snow'), 'snow').append(p); if (isWindy) w.find('.snowflake').css('animation-name', 'fall-sway'); $fgFxTarget.append(w); } };
+                    creator: () => {
+                        const size = `${2 + Math.random() * 3}px`;
+                        const p = this.$('<div class="snowflake"></div>').css({ width: size, height: size, opacity: 0.5 + Math.random() * 0.5 });
+                        const w = this._bindParticleLifecycle(this._createParticleWrapper(density, 'snow'), 'snow').append(p);
+                        w.css({
+                            '--tw-curve-a': (0.22 + Math.random() * 0.62).toFixed(3),
+                            '--tw-curve-b': (0.18 + Math.random() * 0.52).toFixed(3),
+                            '--tw-curve-c': (0.10 + Math.random() * 0.40).toFixed(3)
+                        });
+                        if (isWindy) w.find('.snowflake').css('animation-name', 'fall-sway');
+                        $fgFxTarget.append(w);
+                    } };
             } else if (isWindy && !isCloudy && !shouldShowSakura) { // MODIFIED: Do not show wind effect if sakura is active
-                 newEffect = { type: 'wind', variant: 'normal', density: density.count, particleClass: 'leaf', targetCount: 15 * density.count, interval: 300 / density.speed,
-                    creator: () => { let p = (safeSeasonString.includes('春')) ? ['🍃', '🌸'] : (safeSeasonString.includes('秋')) ? ['🍂', '🍁'] : ['🍃']; const h = p[Math.floor(Math.random() * p.length)]; const l = this.$('<div></div>').addClass('leaf').html(h).css({ fontSize: `${12+Math.random()*8}px`, animationDuration: `${(10+Math.random()*8)/density.speed}s`, animationDelay: `-${Math.random()*10}s`, left: `${Math.random()*100}%`, animationName: this.state.isFxGlobal?'fall-sway-rotate-global':'fall-sway-rotate-local' }); $fgFxTarget.append(l); } };
+                 newEffect = {
+                    type: 'wind', variant: 'normal', density: density.count, particleClass: 'leaf', targetCount: 15 * density.count, interval: 300 / density.speed,
+                    creator: () => {
+                        const particles = (safeSeasonString.includes('春')) ? ['🍃', '🌸'] : (safeSeasonString.includes('秋')) ? ['🍂', '🍁'] : ['🍃'];
+                        const symbol = particles[Math.floor(Math.random() * particles.length)];
+                        const baseAnimation = this.state.isFxGlobal
+                            ? 'fall-sway-rotate-global'
+                            : 'fall-sway-rotate-local';
+                        const driftScale = 0.7 + Math.random() * 0.9;
+
+                        const leaf = this.$('<div></div>').addClass('leaf').html(symbol).css({
+                            fontSize: `${12 + Math.random() * 8}px`,
+                            animationDuration: `${(9 + Math.random() * 9) / density.speed}s`,
+                            animationDelay: `-${Math.random() * 10}s`,
+                            left: `${Math.random() * 100}%`,
+                            animationName: baseAnimation,
+                            '--tw-wind-drift-scale': driftScale.toFixed(3),
+                            '--tw-curve-a': (0.32 + Math.random() * 0.45).toFixed(3),
+                            '--tw-curve-b': (0.22 + Math.random() * 0.42).toFixed(3),
+                            '--tw-curve-c': (0.15 + Math.random() * 0.32).toFixed(3)
+                        });
+                        $fgFxTarget.append(leaf);
+                    }
+                 };
             }
         }
         this._manageContinuousEffect(newEffect, $fgFxTarget);
@@ -133,8 +193,13 @@ export class WeatherSystem {
                 this.logger.log('[天气系统] 首次激活樱花特效 (密集模式)...');
                 const $canvas = this.$('<canvas>').addClass('sakura-canvas');
                 $fgFxTarget.append($canvas);
-                SakuraFX.init($canvas.get(0), { density: 'dense' });
+                SakuraFX.init($canvas.get(0), {
+                    density: 'dense',
+                    windStrength: Math.max(0, density.wind),
+                });
                 this.sakuraInstance = SakuraFX;
+            } else if (this.sakuraInstance?.setWindStrength) {
+                this.sakuraInstance.setWindStrength(Math.max(0, density.wind));
             }
             // If it was already sakura, do nothing, let the instance manage its state.
         } else if (wasSakura && this.sakuraInstance) {
@@ -494,6 +559,78 @@ export class WeatherSystem {
         return wrapper;
     }
 
+    _startWindPulse($fxTarget, windStrength = 0.8) {
+        if (!$fxTarget || !$fxTarget.length) return;
+
+        const targetElement = $fxTarget.get(0);
+        const oldTarget = this.weatherEffects.windPulseTarget;
+        if (oldTarget && oldTarget !== targetElement) {
+            this._stopWindPulse(this.$(oldTarget));
+        }
+
+        this.weatherEffects.windPulseTarget = targetElement;
+
+        if (this.weatherEffects.windPulseIntervalId) {
+            return;
+        }
+
+        $fxTarget.css({
+            '--tw-gust-x': '0vw',
+            '--tw-gust-angle': '0deg'
+        });
+
+        const pulse = () => {
+            const direction = Math.random() < 0.5 ? -1 : 1;
+            const gustFactor = Math.max(0.35, windStrength) * (0.55 + Math.random() * 0.9);
+            const gustX = direction * (8 + Math.random() * 22) * gustFactor;
+            const gustAngle = direction * (3 + Math.random() * 9) * gustFactor;
+
+            $fxTarget.css({
+                '--tw-gust-x': `${gustX.toFixed(2)}vw`,
+                '--tw-gust-angle': `${gustAngle.toFixed(2)}deg`
+            });
+
+            if (this.weatherEffects.windPulseResetTimeout) {
+                clearTimeout(this.weatherEffects.windPulseResetTimeout);
+            }
+
+            this.weatherEffects.windPulseResetTimeout = setTimeout(() => {
+                $fxTarget.css({
+                    '--tw-gust-x': '0vw',
+                    '--tw-gust-angle': '0deg'
+                });
+                this.weatherEffects.windPulseResetTimeout = null;
+            }, 900 + Math.random() * 900);
+        };
+
+        pulse();
+        this.weatherEffects.windPulseIntervalId = setInterval(pulse, 2200);
+    }
+
+    _stopWindPulse($fxTarget = null) {
+        if (this.weatherEffects.windPulseIntervalId) {
+            clearInterval(this.weatherEffects.windPulseIntervalId);
+            this.weatherEffects.windPulseIntervalId = null;
+        }
+        if (this.weatherEffects.windPulseResetTimeout) {
+            clearTimeout(this.weatherEffects.windPulseResetTimeout);
+            this.weatherEffects.windPulseResetTimeout = null;
+        }
+
+        const $target = ($fxTarget && $fxTarget.length)
+            ? $fxTarget
+            : (this.weatherEffects.windPulseTarget ? this.$(this.weatherEffects.windPulseTarget) : null);
+
+        if ($target && $target.length) {
+            $target.css({
+                '--tw-gust-x': '0vw',
+                '--tw-gust-angle': '0deg'
+            });
+        }
+
+        this.weatherEffects.windPulseTarget = null;
+    }
+
     getWeatherDensity(weatherString) {
         if (!weatherString) return { count: 1.0, speed: 1.0, wind: -1 };
         const density = { count: 1.0, speed: 1.0, wind: -1 };
@@ -553,6 +690,7 @@ export class WeatherSystem {
 
     clearAllWeatherEffects(forceClear = true) {
         if (this.weatherEffects.intervalId) clearInterval(this.weatherEffects.intervalId);
+        this._stopWindPulse();
         if (this.lightningLoopTimeout) clearTimeout(this.lightningLoopTimeout);
         if (this.globalLightningLoopTimeout) clearTimeout(this.globalLightningLoopTimeout);
         this.weatherEffects.intervalId = null;
