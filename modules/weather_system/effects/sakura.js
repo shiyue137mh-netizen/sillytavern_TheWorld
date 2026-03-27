@@ -52,6 +52,7 @@ export const SakuraFX = {
     transitionDuration: 4000,
     initialParticles: 0,
     initialRenderPasses: 5,
+    stableParticles: 0,
     targetParticles: 80,
     targetRenderPasses: 1,
     renderPasses: 5,
@@ -162,7 +163,7 @@ export const SakuraFX = {
                 gl_FragColor = col / 5.0;
             }`,
     },
-    
+
     init: function(canvas, options = {}) {
         if (!canvas) return;
         // Reset state for re-initialization
@@ -182,6 +183,7 @@ export const SakuraFX = {
         }
         setTimeout(() => {
             this.activeParticles = 0;
+            this.stableParticles = 0;
             this.projection.matrix = Matrix44.createIdentity();
             this.camera.matrix = Matrix44.createIdentity();
             this.onResize();
@@ -232,6 +234,7 @@ export const SakuraFX = {
         this.gl = null;
         this.canvas = null;
         this.isTransitioning = false;
+        this.stableParticles = 0;
     },
 
     animate: function() {
@@ -253,10 +256,14 @@ export const SakuraFX = {
                 this.isTransitioning = false;
                 this.densityMode = 'sparse';
                 this.pointFlower.numFlowers = this.targetParticles; // Set the new cap
-                if (this.activeParticles > this.pointFlower.numFlowers) {
-                    this.activeParticles = this.pointFlower.numFlowers;
-                }
+                this.stableParticles = Math.min(Math.floor(this.activeParticles), this.pointFlower.numFlowers);
+                this.activeParticles = this.stableParticles;
             }
+        } else if (this.densityMode === 'sparse') {
+            if (this.stableParticles <= 0) {
+                this.stableParticles = Math.min(Math.floor(this.activeParticles), this.pointFlower.numFlowers);
+            }
+            this.activeParticles = this.stableParticles;
         } else if (this.activeParticles < this.pointFlower.numFlowers) {
             this.activeParticles += this.pointFlower.activationRate * this.timeInfo.delta;
             if (this.activeParticles > this.pointFlower.numFlowers) {
@@ -269,11 +276,12 @@ export const SakuraFX = {
 
     transitionToSparse: function() {
         if (this.isTransitioning || this.densityMode === 'sparse') return;
-        
+
         this.isTransitioning = true;
         this.transitionStartTime = performance.now();
         this.initialParticles = this.activeParticles;
         this.initialRenderPasses = this.renderPasses;
+        this.stableParticles = 0;
     },
 
     onResize: function() {
@@ -325,17 +333,22 @@ export const SakuraFX = {
     },
     renderPointFlowers: function() {
         const gl = this.gl; const PI2 = Math.PI * 2.0; const limit = [this.pointFlower.area.x, this.pointFlower.area.y, this.pointFlower.area.z]; const symmetryrand = () => Math.random() * 2.0 - 1.0; const activeCount = Math.floor(this.activeParticles);
-        for(let i = 0; i < activeCount; i++) {
-            let prtcl = this.pointFlower.particles[i]; prtcl.update(this.timeInfo.delta, this.timeInfo.elapsed);
-            if(Math.abs(prtcl.position[0]) - prtcl.size * 0.5 > limit[0]) { prtcl.position[0] > 0 ? prtcl.position[0] -= limit[0] * 2.0 : prtcl.position[0] += limit[0] * 2.0; }
-            if(prtcl.position[1] < -limit[1]) { prtcl.position[1] = limit[1] + Math.random() * 5.0; prtcl.position[0] = symmetryrand() * limit[0]; }
-            if(Math.abs(prtcl.position[2]) - prtcl.size * 0.5 > limit[2]) { prtcl.position[2] > 0 ? prtcl.position[2] -= limit[2] * 2.0 : prtcl.position[2] += limit[2] * 2.0; }
-            prtcl.euler[0] = (prtcl.euler[0] % PI2 + PI2) % PI2; prtcl.euler[1] = (prtcl.euler[1] % PI2 + PI2) % PI2; prtcl.euler[2] = (prtcl.euler[2] % PI2 + PI2) % PI2;
-            prtcl.zkey = (this.camera.matrix[2] * prtcl.position[0] + this.camera.matrix[6] * prtcl.position[1] + this.camera.matrix[10] * prtcl.position[2] + this.camera.matrix[14]);
+        for(let i = 0; i < this.pointFlower.numFlowers; i++) {
+            let prtcl = this.pointFlower.particles[i];
+            if (i < activeCount) {
+                prtcl.update(this.timeInfo.delta, this.timeInfo.elapsed);
+                if(Math.abs(prtcl.position[0]) - prtcl.size * 0.5 > limit[0]) { prtcl.position[0] > 0 ? prtcl.position[0] -= limit[0] * 2.0 : prtcl.position[0] += limit[0] * 2.0; }
+                if(prtcl.position[1] < -limit[1]) { prtcl.position[1] = limit[1] + Math.random() * 5.0; prtcl.position[0] = symmetryrand() * limit[0]; }
+                if(Math.abs(prtcl.position[2]) - prtcl.size * 0.5 > limit[2]) { prtcl.position[2] > 0 ? prtcl.position[2] -= limit[2] * 2.0 : prtcl.position[2] += limit[2] * 2.0; }
+                prtcl.euler[0] = (prtcl.euler[0] % PI2 + PI2) % PI2; prtcl.euler[1] = (prtcl.euler[1] % PI2 + PI2) % PI2; prtcl.euler[2] = (prtcl.euler[2] % PI2 + PI2) % PI2;
+            }
+            prtcl.zkey = i < activeCount
+                ? (this.camera.matrix[2] * prtcl.position[0] + this.camera.matrix[6] * prtcl.position[1] + this.camera.matrix[10] * prtcl.position[2] + this.camera.matrix[14])
+                : Number.POSITIVE_INFINITY;
         }
         this.pointFlower.particles.sort((p0, p1) => p0.zkey - p1.zkey);
         let ipos = 0, ieuler = this.pointFlower.numFlowers * 3, imisc = this.pointFlower.numFlowers * 6;
-        for(let i = 0; i < this.pointFlower.numFlowers; i++) {
+        for(let i = 0; i < activeCount; i++) {
             let prtcl = this.pointFlower.particles[i];
             this.pointFlower.dataArray[ipos++] = prtcl.position[0]; this.pointFlower.dataArray[ipos++] = prtcl.position[1]; this.pointFlower.dataArray[ipos++] = prtcl.position[2];
             this.pointFlower.dataArray[ieuler++] = prtcl.euler[0]; this.pointFlower.dataArray[ieuler++] = prtcl.euler[1]; this.pointFlower.dataArray[ieuler++] = prtcl.euler[2];

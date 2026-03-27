@@ -23,7 +23,7 @@ export class IntroAnimation {
         if (!this._resolvePromise) return; // Prevent multiple calls
 
         this.logger.log('[世界] 正在清理加载动画资源...');
-        
+
         this._animationTimeouts.forEach(clearTimeout);
         this._animationTimeouts = [];
 
@@ -50,7 +50,7 @@ export class IntroAnimation {
 
         this.state.hasLoadedBefore = true;
         this.dataManager.saveState();
-        
+
         this._resolvePromise();
         this._resolvePromise = null; // Mark as resolved
     }
@@ -67,18 +67,18 @@ export class IntroAnimation {
                 resolve();
                 return;
             }
-            
+
             this._resolvePromise = resolve;
 
             this._animationTimeouts.push(setTimeout(() => {
                 this.logger.log('[世界] 首次加载，创建诗歌加载动画...');
-                
+
                 const animationTotalDuration = 37500;
                 const poemsDuration = 30000;
                 const poetryFadeDuration = 7500;
 
                 const $overlay = this.$('<div>').attr('id', 'tw-custom-loader-overlay');
-                
+
                 const newLoaderCSS = `
                     @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css");
                     #preloader { display: none !important; }
@@ -100,7 +100,7 @@ export class IntroAnimation {
                         animation: bg-pan-loader 90s linear infinite alternate;
                     }
                     @keyframes bg-pan-loader { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
-                    
+
                     .tw-loader-poetry-container {
                         position: relative; width: 80%; max-width: 700px; height: 250px;
                         text-align: center;
@@ -137,7 +137,7 @@ export class IntroAnimation {
                     .tw-loader-credits a { color: inherit; text-decoration: none; display:contents; }
                     .tw-loader-credits i { font-size: 1.3em; transition: color 0.3s; }
                     .tw-loader-credits a:hover i { color: #fff; }
-                    
+
                     .tw-loader-skip-btn {
                         position: fixed; bottom: 20px; right: 20px;
                         background: none; border: none; color: rgba(255, 255, 255, 0.5);
@@ -153,28 +153,6 @@ export class IntroAnimation {
                         transition: opacity 2s ease-out; z-index: 0;
                     }
                     @keyframes twinkle-loader { 50% { opacity: 0.3; } }
-
-                    .tw-bird-container-loader {
-                        position: absolute; top: 20%; left: -10%;
-                        transform: scale(0.6) translateX(-10vw); will-change: transform;
-                        animation-timing-function: linear; animation-iteration-count: 1;
-                        z-index: 1;
-                        animation-name: tw-fly-path-loader-1; animation-duration: 20s;
-                    }
-                    .tw-bird-loader {
-                        background-image: url(${this.injectionEngine.win.location.origin}/scripts/extensions/The%20World/the_world/assets/images/bird-cells-new.svg);
-                        background-size: auto 100%; width: 88px; height: 125px;
-                        will-change: background-position;
-                        animation: tw-fly-cycle-loader 1s steps(10) -0.5s infinite;
-                    }
-                    @keyframes tw-fly-cycle-loader { 100% { background-position: -880px 0; } }
-                    @keyframes tw-fly-path-loader-1 {
-                        0% { transform: scale(0.6) translateX(-10vw); }
-                        10% { transform: translateY(2vh) translateX(10vw) scale(0.7); }
-                        30% { transform: translateY(4vh) translateX(50vw) scale(0.8); }
-                        50% { transform: translateY(0vh) translateX(90vw) scale(0.8); }
-                        100% { transform: translateY(0vh) translateX(110vw) scale(0.8); }
-                    }
 
                     @keyframes fade-in-out-poem {
                         0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); }
@@ -247,27 +225,27 @@ export class IntroAnimation {
                         fxBg.append(star);
                     }
                 };
-                
+
                 // _createBird function removed as per user request
 
                 const _animateBg = () => {
                     if (!this.animState || !this.animState.frameId) return;
                     const elapsed = Date.now() - this.animState.start;
                     const progress = elapsed / this.animState.duration;
-                    
+
                     if (progress >= 1) {
                         if (this.animState.frameId) cancelAnimationFrame(this.animState.frameId);
                         this.animState.frameId = null;
                         return;
                     }
-                    
+
                     const simulatedTime = progress * 24;
                     const theme = this.timeGradient.getThemeForTime({ timeString: `${String(Math.floor(simulatedTime)).padStart(2, '0')}:${String(Math.floor((simulatedTime % 1) * 60)).padStart(2, '0')}` });
-                    
+
                     this.animState.bg1.style.background = theme.background;
                     this.animState.bg1.style.opacity = 1;
                     this.animState.poetryContainer.className = `tw-loader-poetry-container ${theme.brightness === 'light' ? 'theme-light-text' : 'theme-dark-text'}`;
-                    
+
                     if (this.clouds) {
                         const currentPeriod = this._derivePeriodFromTime(simulatedTime);
                         this.clouds.updateCloudColor(currentPeriod, '晴');
@@ -275,20 +253,20 @@ export class IntroAnimation {
 
                     this.animState.frameId = requestAnimationFrame(_animateBg);
                 };
-                
+
                 this.animState.frameId = requestAnimationFrame(_animateBg);
                 _createStars();
 
                 this._animationTimeouts.push(setTimeout(() => {
                     this.$('.tw-loader-star').css('opacity', '0');
                 }, poetryFadeDuration));
-                
+
                 // Bird animation timeout removed
-                
+
                 this._animationTimeouts.push(setTimeout(() => {
                     this.$('.tw-loader-poetry-container').css('opacity', 0);
                 }, poemsDuration));
-                
+
                 this._animationTimeouts.push(setTimeout(() => {
                     this.$('.tw-loader-brand-container').css('opacity', 1);
                 }, poemsDuration + 500));

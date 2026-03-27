@@ -17,7 +17,7 @@ export class Clouds3dFX {
         this.viewport = null;
         this.worldXAngle = 0;
         this.worldYAngle = 0;
-        this.d = 0; 
+        this.d = 0;
         this.density = { count: 1.0 };
         this.animationFrameId = null;
 
@@ -45,7 +45,7 @@ export class Clouds3dFX {
             this.isActive = false;
             return;
         }
-        
+
         this.viewport = this.$('<div>').attr('id', 'clouds-viewport').get(0);
         this.world = this.$('<div>').attr('id', 'clouds-world').get(0);
         this.viewport.appendChild(this.world);
@@ -65,7 +65,7 @@ export class Clouds3dFX {
 
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
-        
+
         if (this.viewport) {
             this.$(this.viewport).remove();
         }
@@ -77,10 +77,10 @@ export class Clouds3dFX {
 
     updateCloudColor(period, weather) {
         if (!this.isActive || !this.world) return;
-    
+
         let filter = 'brightness(1)'; // Default: White clouds for day
         const isBadWeather = weather.includes('雷') || weather.includes('雨') || weather.includes('雪') || weather.includes('阴');
-    
+
         if (isBadWeather) {
             // Bad weather logic: Weather type is primary, time of day is secondary.
             if (period.includes('夜')) {
@@ -106,7 +106,7 @@ export class Clouds3dFX {
                 filter = 'brightness(1)';
             }
         }
-        
+
         this.$(this.world).find('.cloudLayer').css('filter', filter);
     }
 
@@ -117,13 +117,12 @@ export class Clouds3dFX {
         // in sync with the lightning SVG strike. This function is now a no-op
         // to prevent the cloud compression visual bug.
     }
-    
+
     _generate(transitionDuration = '7s') {
         this.layers = [];
         this.$(this.world).empty();
-        // PERFORMANCE OPTIMIZATION: Reduced the base number of cloud clusters
-        const baseCount = 12;
-        const cloudCount = Math.min(60, Math.floor(baseCount * this.density.count));
+        const baseCount = this.density.count >= 3 ? 8 : 10;
+        const cloudCount = Math.min(36, Math.max(6, Math.floor(baseCount * this.density.count)));
         this.logger.log(`[3D Clouds] Generating ${cloudCount} cloud clusters based on density ${this.density.count}`);
 
         for (let j = 0; j < cloudCount; j++) {
@@ -141,9 +140,8 @@ export class Clouds3dFX {
         div.style.transform = t;
         this.world.appendChild(div);
 
-        // PERFORMANCE OPTIMIZATION: Reduced the number of layers per cluster
-        // PERFORMANCE OPTIMIZATION: Reduced the number of layers per cluster
-        for (let j = 0; j < 3 + Math.round(Math.random() * 2); j++) {
+        const layerCount = this.density.count >= 3 ? 2 + Math.round(Math.random()) : 3 + Math.round(Math.random() * 2);
+        for (let j = 0; j < layerCount; j++) {
             const cloud = document.createElement('div');
             cloud.style.opacity = `${0.6 + Math.random() * 0.4}`;
             cloud.className = 'cloudLayer';
@@ -154,7 +152,7 @@ export class Clouds3dFX {
             const z = 100 - (Math.random() * 200);
             const a = Math.random() * 360;
             const s = 0.5 + Math.random();
-            
+
             cloud.dataset.x = x * 0.2;
             cloud.dataset.y = y * 0.2;
             cloud.dataset.z = z;
@@ -179,7 +177,7 @@ export class Clouds3dFX {
 
         const t = `translateZ(${this.d}px) rotateX(${this.worldXAngle}deg) rotateY(${this.worldYAngle}deg)`;
         this.world.style.transform = t;
-        
+
         // The individual layer transforms are now static, set only at creation.
         // This avoids recalculating hundreds of transforms every frame.
 

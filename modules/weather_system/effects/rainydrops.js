@@ -5,18 +5,18 @@
 
 // This entire module is an IIFE that returns the RainyDay class.
 export const RainyDay = (function() {
-    
+
     // --- Internal helper classes ---
     function Drop(rainyday, centerX, centerY, min, base) {
         this.x = Math.floor(centerX);
         this.y = Math.floor(centerY);
         this.r1 = (Math.random() * base) + min;
         this.rainyday = rainyday;
-        
+
         var iterations = 4;
         this.r2 = 0.8 * this.r1;
         this.linepoints = rainyday.getLinepoints(iterations);
-        
+
         this.context = rainyday.context;
         this.reflection = rainyday.reflected;
         this.intid = null;
@@ -43,7 +43,7 @@ export const RainyDay = (function() {
         if (this.reflection) {
             this.context.drawImage(this.reflection, this.x - this.r1, this.y - this.r1, this.r1 * 2, this.r1 * 2);
         }
-        
+
         this.context.restore();
     };
 
@@ -83,9 +83,10 @@ export const RainyDay = (function() {
 
         this.width = options.width;
         this.height = options.height;
-        
+
         this.drops = [];
         this.createDropInterval = null;
+        this.maxDrops = options.maxDrops || 72;
 
         this.canvas = document.createElement('canvas');
         this.canvas.style.position = 'absolute';
@@ -103,7 +104,7 @@ export const RainyDay = (function() {
         this.gravity = this.GRAVITY_NON_LINEAR;
         this.VARIABLE_GRAVITY_THRESHOLD = 3;
         this.VARIABLE_GRAVITY_ANGLE = Math.PI / 2;
-        this.VARIABLE_FPS = 24;
+        this.VARIABLE_FPS = 18;
     }
 
     RainyDayConstructor.prototype.getLinepoints = function(iterations) {
@@ -132,6 +133,7 @@ export const RainyDay = (function() {
     };
 
     RainyDayConstructor.prototype.TRAIL_DROPS = function(drop) {
+        if (this.drops.length >= this.maxDrops || Math.random() > 0.35) return;
         if (!drop.trail_y || drop.y - drop.trail_y >= Math.random() * 10 * drop.r1) {
             drop.trail_y = drop.y;
             const trailDrop = new Drop(this, drop.x, drop.y - drop.r1 - 5, 0, Math.ceil(drop.r1 / 5));
@@ -154,12 +156,12 @@ export const RainyDay = (function() {
         this.parentElement.appendChild(this.glass); this.context = this.glass.getContext('2d');
         this.glass.style.opacity = this.opacity;
     };
-    
+
     RainyDayConstructor.prototype.prepareReflections = function() {
         this.reflected = document.createElement('canvas');
         this.reflected.width = this.width; this.reflected.height = this.height;
         const ctx = this.reflected.getContext('2d');
-        
+
         const imgRatio = this.img.naturalWidth / this.img.naturalHeight; const canvasRatio = this.width / this.height;
         let sx = 0, sy = 0, sWidth = this.img.naturalWidth, sHeight = this.img.naturalHeight;
 
@@ -201,9 +203,10 @@ export const RainyDay = (function() {
     };
 
     RainyDayConstructor.prototype.putDrop = function(drop) {
+        if (this.drops.length >= this.maxDrops) return;
         this.drops.push(drop);
         drop.draw();
-        
+
         if (this.gravity && drop.r1 > this.VARIABLE_GRAVITY_THRESHOLD) {
             drop.animate();
         } else {
@@ -216,7 +219,7 @@ export const RainyDay = (function() {
             }, 3000 + Math.random() * 2000);
         }
     };
-    
+
     RainyDayConstructor.prototype.GRAVITY_NON_LINEAR = function(drop) {
         if (drop.clear()) return true;
         if (!drop.seed || drop.seed < 0) {
@@ -245,6 +248,6 @@ export const RainyDay = (function() {
         drop.y += drop.yspeed; drop.x += drop.xspeed;
         drop.draw(); return false;
     };
-    
+
     return RainyDayConstructor;
 })();
