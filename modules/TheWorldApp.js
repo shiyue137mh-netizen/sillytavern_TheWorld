@@ -364,6 +364,9 @@ export class TheWorldApp {
 
         await this.processSingleMessage(lastId);
         if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
+        if (this.uiController) {
+            await this.uiController.updateAllPanes();
+        }
         this.logger.success('[Recalculator] Initial state calculated and ready.');
     }
 
@@ -424,6 +427,15 @@ export class TheWorldApp {
             this.logger.log('Chat changed. Clearing all transient state and recalculating for new chat.');
             this.previousStateSnapshot = null;
             TheWorldState.lorebookTransactionHistory = {}; // Clear transaction history for new chat
+
+            TheWorldState.latestMapData = {};
+            TheWorldState.latestWorldStateData = {};
+            this.state.currentPlayerLocationId = null;
+
+            if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
+            if (this.uiController) {
+                await this.uiController.updateAllPanes();
+            }
 
             // Proactively initialize map data for the new chat
             const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();

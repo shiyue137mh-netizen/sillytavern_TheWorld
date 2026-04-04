@@ -10,6 +10,7 @@ export class UIEventManager {
         this.longPressTimer = null;
         this.pressStartTime = 0;
         this.isAudioUnlocked = false;
+        this.longPressDurationMs = 2500;
 
         // Managers are now passed in via dependencies, no need to instantiate them here.
     }
@@ -24,14 +25,24 @@ export class UIEventManager {
                 this.panelManager.togglePanel(false);
             }
             const css = `
-                body.the-world-skygazing-mode > *:not(#the_world-toggle-btn):not(.tw-global-theme-container):not(#the_world-fx-layer):not(#the_world-fx-layer-bg):not(#${this.config.SKYGAZING_STYLE_ID}):not(.ws-dialog-overlay) {
+                body.the-world-skygazing-mode #top-bar,
+                body.the-world-skygazing-mode #sheld,
+                body.the-world-skygazing-mode #left-nav-panel,
+                body.the-world-skygazing-mode #right-nav-panel,
+                body.the-world-skygazing-mode #extensions_settings,
+                body.the-world-skygazing-mode #extensions_settings2,
+                body.the-world-skygazing-mode #floatingPrompt,
+                body.the-world-skygazing-mode #WorldInfo,
+                body.the-world-skygazing-mode #movingDivs,
+                body.the-world-skygazing-mode .drawer-content,
+                body.the-world-skygazing-mode .modal,
+                body.the-world-skygazing-mode .ws-dialog-overlay,
+                body.the-world-skygazing-mode > *:not(#the_world-toggle-btn):not(.tw-global-theme-container):not(#the_world-fx-layer):not(#the_world-fx-layer-bg):not(style#${this.config.SKYGAZING_STYLE_ID}) {
                     transition: opacity 0.5s ease-out;
                     opacity: 0 !important;
                     pointer-events: none !important;
                 }
-                body.the-world-skygazing-mode #the_world-panel,
-                body.the-world-skygazing-mode .modal,
-                body.the-world-skygazing-mode .ws-dialog-overlay {
+                body.the-world-skygazing-mode #the_world-panel {
                     opacity: 0 !important;
                     pointer-events: none !important;
                 }
@@ -39,7 +50,7 @@ export class UIEventManager {
                     z-index: 10001 !important;
                 }
             `;
-            this.injectione1Engine.injectCss(this.config.SKYGAZING_STYLE_ID, css);
+            this.injectionEngine.injectCss(this.config.SKYGAZING_STYLE_ID, css);
             $body.addClass('the-world-skygazing-mode');
         } else {
             this.injectionEngine.removeCss(this.config.SKYGAZING_STYLE_ID);
@@ -60,6 +71,7 @@ export class UIEventManager {
                 clearTimeout(this.longPressTimer);
                 this.longPressTimer = null;
             }
+            $toggleBtn.removeData('tw-long-press-active');
             $toggleBtn.removeClass('long-press-active');
             $toggleBtn.find('.long-press-indicator').remove();
         };
@@ -74,12 +86,14 @@ export class UIEventManager {
                 if (e.type === 'mousedown' && e.which !== 1) return;
 
                 this.pressStartTime = Date.now();
+                $toggleBtn.data('tw-long-press-active', true);
                 $toggleBtn.append('<div class="long-press-indicator"></div>');
                 setTimeout(() => $toggleBtn.addClass('long-press-active'), 10);
                 this.longPressTimer = setTimeout(() => {
                     this.toggleSkygazingMode();
+                    $toggleBtn.removeData('tw-long-press-active');
                     this.longPressTimer = null;
-                }, 2000);
+                }, this.longPressDurationMs);
             })
             .on('mouseup.tw_toggle touchend.tw_toggle', (e) => {
                 if (this.longPressTimer === null) {
@@ -92,6 +106,7 @@ export class UIEventManager {
                     this.panelManager.togglePanel();
                 }
             })
+            .on('tw-longpress-cancel.tw_toggle', clearLongPress)
             .on('mouseleave.tw_toggle', clearLongPress);
 
         this.panelManager.makeDraggable($toggleBtn, $toggleBtn, true);

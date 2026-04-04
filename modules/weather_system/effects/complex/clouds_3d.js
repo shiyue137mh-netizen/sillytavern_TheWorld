@@ -13,13 +13,14 @@ export class Clouds3dFX {
 
         this.isActive = false;
         this.layers = [];
+        this.bases = [];
         this.world = null;
         this.viewport = null;
-        this.worldXAngle = 0;
-        this.worldYAngle = 0;
+        this.elapsed = 0;
         this.d = 0;
         this.density = { count: 1.0 };
         this.animationFrameId = null;
+        this.lastFrameTime = 0;
 
         this._updateLoop = this._updateLoop.bind(this);
     }
@@ -28,17 +29,17 @@ export class Clouds3dFX {
         const transitionDuration = options.transitionDuration || '7s';
 
         if (this.isActive) {
+            const nextDensity = density || { count: 1.0, wind: -1 };
+            const shouldRegenerate = this.density.count !== nextDensity.count;
+            this.density = nextDensity;
             this.updateCloudColor(period, weather);
-            if (this.density.count !== (density || {count:1.0}).count) {
-                 this.density = density || { count: 1.0 };
-                 this._generate(transitionDuration);
-            }
+            if (shouldRegenerate) this._generate(transitionDuration);
             return;
         }
 
         this.logger.log('[3D Clouds] Activating...');
         this.isActive = true;
-        this.density = density || { count: 1.0 };
+        this.density = density || { count: 1.0, wind: -1 };
 
         if (!$fxTarget || $fxTarget.length === 0) {
             this.logger.error('[3D Clouds] FX Target layer not found. Cannot activate.');
@@ -71,8 +72,11 @@ export class Clouds3dFX {
         }
 
         this.layers = [];
+        this.bases = [];
         this.world = null;
         this.viewport = null;
+        this.elapsed = 0;
+        this.lastFrameTime = 0;
     }
 
     updateCloudColor(period, weather) {
@@ -120,6 +124,7 @@ export class Clouds3dFX {
 
     _generate(transitionDuration = '7s') {
         this.layers = [];
+        this.bases = [];
         this.$(this.world).empty();
         const baseCount = this.density.count >= 3 ? 8 : 10;
         const cloudCount = Math.min(36, Math.max(6, Math.floor(baseCount * this.density.count)));
@@ -133,12 +138,22 @@ export class Clouds3dFX {
     _createCloud(transitionDuration) {
         const div = document.createElement('div');
         div.className = 'cloudBase';
-        const x = 800 - (Math.random() * 1600);
-        const y = 800 - (Math.random() * 1600);
-        const z = 400 - (Math.random() * 800);
+        const x = 900 - (Math.random() * 1800);
+        const y = 420 - (Math.random() * 840);
+        const z = 320 - (Math.random() * 640);
+        const drift = 0.8 + Math.random() * 1.6;
+        const bobPhase = Math.random() * Math.PI * 2;
+        const bobAmount = 1 + Math.random() * 2.5;
         const t = `translateX(${x}px) translateY(${y}px) translateZ(${z}px)`;
         div.style.transform = t;
+        div.dataset.baseX = x;
+        div.dataset.baseY = y;
+        div.dataset.baseZ = z;
+        div.dataset.drift = drift;
+        div.dataset.bobPhase = bobPhase;
+        div.dataset.bobAmount = bobAmount;
         this.world.appendChild(div);
+        this.bases.push(div);
 
         const layerCount = this.density.count >= 3 ? 2 + Math.round(Math.random()) : 3 + Math.round(Math.random() * 2);
         for (let j = 0; j < layerCount; j++) {
@@ -158,7 +173,6 @@ export class Clouds3dFX {
             cloud.dataset.z = z;
             cloud.dataset.a = a;
             cloud.dataset.s = s;
-            cloud.dataset.speed = 0.02 * Math.random();
 
             const transform = `translateX(${cloud.dataset.x}px) translateY(${cloud.dataset.y}px) translateZ(${cloud.dataset.z}px) rotateZ(${a}deg) scale(${s})`;
             cloud.style.transform = transform;
@@ -171,15 +185,51 @@ export class Clouds3dFX {
     _updateLoop() {
         if (!this.isActive) return;
 
-        // Simplified rotation - only rotate the entire world, not individual layers against it
-        this.worldYAngle += 0.01; // Slightly increased speed to compensate for less complex motion
-        this.worldXAngle += 0.004;
+        const now = performance.now();
+        const deltaSeconds = this.lastFrameTime ? Math.min((now - this.lastFrameTime) / 1000, 0.05) : 0.016;
+        this.lastFrameTime = now;
+        this.elapsed += deltaSeconds;
 
-        const t = `translateZ(${this.d}px) rotateX(${this.worldXAngle}deg) rotateY(${this.worldYAngle}deg)`;
-        this.world.style.transform = t;
+        this.world.style.transform = `translateZ(${this.d}px)`;
 
-        // The individual layer transforms are now static, set only at creation.
-        // This avoids recalculating hundreds of transforms every frame.
+        const windLevel = Math.max(0, Number(this.density.wind) || 0);
+        const windMultiplier = 0.55 + windLevel * 0.45;
+        const horizontalSpeed = 5 * windMultiplier;
+        const verticalFrequency = 0.05 + windLevel * 0.015;
+        const verticalAmplitudeScale = 0.7 + windLevel * 0.15;
+
+        for (const base of this.bases) {
+            const baseX = Number(base.dataset.baseX) || 0;
+            const baseY = Number(base.dataset.baseY) || 0;
+            const baseZ = Number(base.dataset.baseZ) || 0;
+            const drift = Number(base.dataset.drift) || 0;
+            const bobPhase = Number(base.dataset.bobPhase) || 0;
+            const bobAmount = Number(base.dataset.bobAmount) || 0;
+
+            let x = baseX + this.elapsed * drift * horizontalSpeed;
+            while (x > 980) x -= 1960;
+
+            const y = baseY + Math.sin((this.elapsed * verticalFrequency) + bobPhase) * bobAmount * verticalAmplitudeScale;
+            base.style.transform = `translateX(${x}px) translateY(${y}px) translateZ(${baseZ}px)`;
+        }
+
+        for (const cloud of this.layers) {
+            const x = Number(cloud.dataset.x) || 0;
+            const y = Number(cloud.dataset.y) || 0;
+            const z = Number(cloud.dataset.z) || 0;
+            const a = Number(cloud.dataset.a) || 0;
+            const s = Number(cloud.dataset.s) || 1;
+
+            cloud.style.transform = [
+                `translateX(${x}px)`,
+                `translateY(${y}px)`,
+                `translateZ(${z}px)`,
+                'rotateX(0deg)',
+                'rotateY(0deg)',
+                `rotateZ(${a}deg)`,
+                `scale(${s})`
+            ].join(' ');
+        }
 
         this.animationFrameId = requestAnimationFrame(this._updateLoop);
     }

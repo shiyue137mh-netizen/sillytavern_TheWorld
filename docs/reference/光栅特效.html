@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>放射方块投影光效演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+        }
+
+        #paper-container {
+            position: relative;
+            overflow: hidden;
+            background-color: #f4f1ea;
+            background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.9) 0%, rgba(230,225,210,0.6) 100%);
+            box-shadow: inset 0 0 120px rgba(120, 100, 80, 0.15);
+        }
+
+        /* * 吸收了 Area Light 思路：环境主光源
+         * 弃用了生硬的 repeating-conic，改用平滑的 conic-gradient，
+         * 并加入了你提供的 -webkit-mask-image 边缘柔化技术！
+         *这个配置模糊和密度拉满可以模拟仿真的纸的阴影纹路
+         */
+        #sunlight-beam {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image:
+                /* 中心高光池 */
+                radial-gradient(circle at 50% 0%, rgba(255, 255, 240, 0.9) 0%, rgba(255, 235, 180, 0.2) 40%, transparent 70%),
+                /* 两道主放射柔光 (借鉴你的 conic-gradient 思路) */
+                conic-gradient(from 145deg at 50% -10%, transparent 0deg, rgba(255, 255, 255, 0.4) 15deg, transparent 35deg),
+                conic-gradient(from 185deg at 50% -10%, transparent 0deg, rgba(255, 255, 255, 0.3) 15deg, transparent 35deg);
+
+            /* 核心：用遮罩让光线在底部和四周自然衰减消失 */
+            -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, black 30%, transparent 90%);
+            mask-image: radial-gradient(120% 100% at 50% 0%, black 30%, transparent 90%);
+
+            mix-blend-mode: color-dodge;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* * 核心光效层：多重半影融合 + 遮罩衰减 (Mask Fade)
+         */
+        #radial-shadow {
+            position: absolute;
+            width: 300%;
+            height: 500%;
+            top: -50%;
+            left: -100%;
+
+            --shadow-opacity: 0.3;
+            --shadow-blur: 8px;
+            --shadow-angle: -35deg;
+            --shadow-density: 1;
+
+            background-image:
+                /* 主垂直投影 */
+                repeating-linear-gradient(90deg,
+                    transparent 0,
+                    transparent calc(40px / var(--shadow-density)),
+                    rgba(0,0,0, var(--shadow-opacity)) calc(45px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 1.3)) calc(60px / var(--shadow-density)),
+                    rgba(0,0,0, var(--shadow-opacity)) calc(75px / var(--shadow-density)),
+                    transparent calc(80px / var(--shadow-density)),
+                    transparent calc(150px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 0.8)) calc(160px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 0.8)) calc(190px / var(--shadow-density)),
+                    transparent calc(200px / var(--shadow-density)),
+                    transparent calc(300px / var(--shadow-density))
+                ),
+                /* 夹角 12 度的同向微散射 */
+                repeating-linear-gradient(78deg,
+                    transparent 0,
+                    transparent calc(60px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 1.1)) calc(70px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 1.1)) calc(100px / var(--shadow-density)),
+                    transparent calc(110px / var(--shadow-density)),
+                    transparent calc(220px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 0.9)) calc(230px / var(--shadow-density)),
+                    rgba(0,0,0, calc(var(--shadow-opacity) * 0.9)) calc(260px / var(--shadow-density)),
+                    transparent calc(270px / var(--shadow-density)),
+                    transparent calc(400px / var(--shadow-density))
+                );
+
+            background-color: transparent;
+
+            /* !!! 吸收你的理念：径向遮罩衰减 !!!
+             * 让这片巨大的阴影层不再是“无限壁纸”，而是集中在“光池”内部，
+             * 越往四周，阴影越淡，最终完全消失在光晕外围！
+             */
+            -webkit-mask-image: radial-gradient(ellipse 45% 45% at 50% 20%, black 10%, rgba(0,0,0,0.5) 50%, transparent 80%);
+            mask-image: radial-gradient(ellipse 45% 45% at 50% 20%, black 10%, rgba(0,0,0,0.5) 50%, transparent 80%);
+
+            filter: blur(var(--shadow-blur));
+
+            transform-origin: 50% 10%;
+            transform: perspective(1000px) rotateX(65deg) skewX(var(--shadow-angle));
+
+            pointer-events: none;
+            mix-blend-mode: multiply;
+            z-index: 10;
+
+            animation: slow-shift 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes slow-shift {
+            0% { background-position: 0px 0px; }
+            100% { background-position: -30px 20px; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col md:flex-row font-sans overflow-hidden">
+
+    <!-- 左侧：视觉演示区 -->
+    <div class="flex-1 flex flex-col relative border-r border-gray-700 shadow-2xl z-10">
+        <div id="paper-container" class="flex-1 w-full h-full flex items-center justify-center p-12">
+
+            <div class="max-w-lg w-full text-gray-800 relative z-0 tracking-widest leading-loose">
+                <h2 class="text-3xl font-bold mb-8 text-gray-900">破译档案 #042</h2>
+                <p class="mb-4 text-lg">
+                    光线穿过上方那个破碎的几何穹顶，被切割成凌乱的方块与射线，投在我的档案上。
+                </p>
+                <p class="mb-4 text-lg">
+                    这里的建筑结构不符合任何已知的力学常理。它们像是被某种高维度的力量强行拼接在一起的碎块。
+                </p>
+                <p class="mb-4 text-lg">
+                    我必须赶在“太阳”完全落下前找到下一个标记。
+                </p>
+            </div>
+
+            <div id="sunlight-beam"></div>
+            <!-- 放射状随机方块阴影层 -->
+            <div id="radial-shadow"></div>
+        </div>
+    </div>
+
+    <!-- 右侧：控制与原理教学区 -->
+    <div class="w-full md:w-96 bg-gray-800 flex flex-col h-full overflow-y-auto">
+        <div class="p-6">
+            <h2 class="text-2xl font-bold text-white mb-2">放射方块投影</h2>
+            <p class="text-sm text-gray-400 mb-6">利用圆锥渐变生成射线，配合多组不规则线性渐变切分出随机方块。使用 skewX 实现纯水平倾斜的光照透视。</p>
+
+            <!-- 实时控制器 -->
+            <div class="bg-gray-900 p-5 rounded-lg border border-gray-700 mb-6 space-y-5">
+                <h3 class="text-yellow-400 font-semibold mb-2">光束形态调节</h3>
+
+                <div>
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>结构阴影浓度</span>
+                        <span id="val-opacity">0.30</span>
+                    </div>
+                    <input type="range" id="ctrl-opacity" min="0.05" max="0.6" step="0.01" value="0.30" class="w-full accent-yellow-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>光线散射 (模糊度)</span>
+                        <span id="val-blur">8px</span>
+                    </div>
+                    <input type="range" id="ctrl-blur" min="0" max="25" step="1" value="8" class="w-full accent-yellow-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>水平斜射角度 (SkewX)</span>
+                        <span id="val-angle">-35°</span>
+                    </div>
+                    <input type="range" id="ctrl-angle" min="-70" max="70" step="1" value="-35" class="w-full accent-yellow-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>光束密度 (疏 <-> 密)</span>
+                        <span id="val-density">1.0</span>
+                    </div>
+                    <input type="range" id="ctrl-density" min="0.3" max="3" step="0.1" value="1" class="w-full accent-yellow-500">
+                </div>
+            </div>
+
+            <!-- 核心代码解析 -->
+            <div class="space-y-4">
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h3 class="text-yellow-400 font-semibold mb-2 text-sm">✨新增：径向体积遮罩 (Volume Mask)</h3>
+                    <p class="text-xs text-gray-300 mb-2">
+                        吸收了 <code class="text-yellow-300 bg-gray-800 px-1 rounded">-webkit-mask-image: radial-gradient(...)</code> 的思路。为高光层和巨大的阴影层分别添加了向边缘过渡到透明的遮罩。这让光斑变成了一个聚焦的“光池”，边缘自然消散，彻底打破了此前全屏覆盖带来的“无限壁纸”的生硬感。
+                    </p>
+                </div>
+
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h3 class="text-pink-400 font-semibold mb-2 text-sm">1. 自然的本影与半影还原</h3>
+                    <p class="text-xs text-gray-300 mb-2">
+                        回到线性渐变叠加，但在渐变带边缘增加了<code class="text-pink-300 bg-gray-800 px-1 rounded">羽化缓冲</code>。当相差仅 12 度的两条阴影重叠时，它们会自然形成中间深(本影)、边缘浅(半影)的物理层次感，告别死黑和网格化拼贴感。
+                    </p>
+                </div>
+
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h3 class="text-blue-400 font-semibold mb-2 text-sm">2. 柔和的广角射线</h3>
+                    <p class="text-xs text-gray-300">
+                        在高光层去掉了密集的 repeating-conic，转而使用两组平滑的 <code class="text-blue-300 bg-gray-800 px-1 rounded">conic-gradient</code>，配合 <code class="text-blue-300 bg-gray-800 px-1 rounded">color-dodge</code>，呈现出更细腻的全局体积光感。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const radialShadow = document.getElementById('radial-shadow');
+        const paperContainer = document.getElementById('paper-container');
+
+        const ctrlOpacity = document.getElementById('ctrl-opacity');
+        const ctrlBlur = document.getElementById('ctrl-blur');
+        const ctrlAngle = document.getElementById('ctrl-angle');
+        const ctrlDensity = document.getElementById('ctrl-density');
+
+        const valOpacity = document.getElementById('val-opacity');
+        const valBlur = document.getElementById('val-blur');
+        const valAngle = document.getElementById('val-angle');
+        const valDensity = document.getElementById('val-density');
+
+        // 更新变量
+        ctrlOpacity.addEventListener('input', (e) => {
+            const val = e.target.value;
+            radialShadow.style.setProperty('--shadow-opacity', val);
+            valOpacity.textContent = val;
+        });
+
+        ctrlBlur.addEventListener('input', (e) => {
+            const val = e.target.value;
+            radialShadow.style.setProperty('--shadow-blur', `${val}px`);
+            valBlur.textContent = `${val}px`;
+        });
+
+        ctrlAngle.addEventListener('input', (e) => {
+            const val = e.target.value;
+            radialShadow.style.setProperty('--shadow-angle', `${val}deg`);
+            valAngle.textContent = `${val}°`;
+        });
+
+        ctrlDensity.addEventListener('input', (e) => {
+            const val = e.target.value;
+            radialShadow.style.setProperty('--shadow-density', val);
+            valDensity.textContent = Number(val).toFixed(1);
+        });
+
+        // 轻微的视差交互
+        paperContainer.addEventListener('mousemove', (e) => {
+            const rect = paperContainer.getBoundingClientRect();
+            const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+
+            // 仅在水平方向上做极微弱的偏移，强化立体感
+            const moveX = x * -20;
+
+            const currentAngle = radialShadow.style.getPropertyValue('--shadow-angle') || '-35deg';
+            radialShadow.style.transform = `perspective(1000px) rotateX(65deg) skewX(${currentAngle}) translateX(${moveX}px)`;
+        });
+
+        paperContainer.addEventListener('mouseleave', () => {
+            const currentAngle = radialShadow.style.getPropertyValue('--shadow-angle') || '-35deg';
+            radialShadow.style.transform = `perspective(1000px) rotateX(65deg) skewX(${currentAngle}) translateX(0px)`;
+            radialShadow.style.transition = 'transform 0.6s ease-out';
+            setTimeout(() => {
+                radialShadow.style.transition = '';
+            }, 600);
+        });
+    </script>
+</body>
+</html>

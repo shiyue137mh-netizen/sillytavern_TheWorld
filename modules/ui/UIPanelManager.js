@@ -76,20 +76,35 @@ export class UIPanelManager {
         this.logger.log(`正在为 ${isButton ? '按钮' : '面板'} 设置拖动...`);
         const $doc = this.$(this.win.document);
         const getCoords = e => e.type.startsWith('touch') ? e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] : e;
+        const dragThreshold = isButton ? 8 : 0;
 
         $handle.off('mousedown.tw_drag touchstart.tw_drag').on('mousedown.tw_drag touchstart.tw_drag', (e) => {
             if (this.$(e.target).is('button, input, textarea, .tw-resize-handle, .tw-close') || this.$(e.target).closest('button, .tw-close').length) {
                 return;
             }
-            e.preventDefault();
 
             const coords = getCoords(e);
             const startX = coords.pageX;
             const startY = coords.pageY;
             const startPos = $element.position();
+            let hasMovedBeyondThreshold = false;
 
             const onMove = (moveEvent) => {
                 const moveCoords = getCoords(moveEvent);
+                const deltaX = moveCoords.pageX - startX;
+                const deltaY = moveCoords.pageY - startY;
+
+                if (!hasMovedBeyondThreshold) {
+                    if ((Math.abs(deltaX) + Math.abs(deltaY)) < dragThreshold) {
+                        return;
+                    }
+                    hasMovedBeyondThreshold = true;
+                    if (isButton) {
+                        $handle.trigger('tw-longpress-cancel');
+                    }
+                }
+
+                moveEvent.preventDefault();
                 let newLeft = startPos.left + (moveCoords.pageX - startX);
                 let newTop = startPos.top + (moveCoords.pageY - startY);
 
@@ -102,6 +117,10 @@ export class UIPanelManager {
             const onEnd = () => {
                 $doc.off('mousemove.tw_drag touchmove.tw_drag', onMove);
                 $doc.off('mouseup.tw_drag touchend.tw_drag', onEnd);
+
+                if (!hasMovedBeyondThreshold) {
+                    return;
+                }
 
                 // This logic should apply to both panel and button
                 const finalPos = $element.position();

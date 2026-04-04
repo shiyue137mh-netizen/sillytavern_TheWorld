@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sillywood 光效演示与教学系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 核心教学区：光效基础样式 */
+        :root {
+            /* 鼠标坐标变量，默认为屏幕中心 */
+            --cursor-x: 50%;
+            --cursor-y: 50%;
+        }
+
+        /* 场景容器，必须相对定位以便光罩绝对定位覆盖 */
+        #scene-container {
+            position: relative;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            /* 使用一张背景图来凸显光效 */
+            background-image: url('https://images.unsplash.com/photo-1505635552518-3448ff116af3?q=80&w=1000&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* * 核心：光效遮罩层
+         * pointer-events: none 是关键，保证鼠标可以穿透光罩点击下方的物体
+         * mix-blend-mode 可以让光效更好地和背景融合（可选）
+         */
+        #light-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transition: background 0.5s ease; /* 切换光效时的过渡 */
+            z-index: 10;
+        }
+
+        /* =========================================
+           1. 黑暗下的手电筒 (Flashlight)
+           原理：中心透明，四周纯黑。中心点绑定鼠标坐标变量
+           ========================================= */
+        .effect-flashlight {
+            background: radial-gradient(
+                circle 150px at var(--cursor-x) var(--cursor-y),
+                transparent 0%,
+                rgba(0, 0, 0, 0.7) 80%,
+                rgba(0, 0, 0, 0.98) 120%,
+                #000 100%
+            );
+        }
+
+        /* =========================================
+           2. 房间电灯 (Electric Light)
+           原理：固定在顶部中心，暖黄色到黑色的渐变，带有不稳定的闪烁动画
+           ========================================= */
+        .effect-electric {
+            background: radial-gradient(
+                circle 800px at 50% -20%, /* 光源在屏幕正上方外部 */
+                rgba(255, 240, 200, 0.4) 0%,
+                rgba(0, 0, 0, 0.7) 60%,
+                rgba(0, 0, 0, 0.95) 100%
+            );
+            animation: flicker-electric 5s infinite;
+        }
+
+        /* =========================================
+           3. 摇曳的火光 (Firelight)
+           原理：固定在底部，橘红色调，带有快速的缩放和透明度改变动画
+           ========================================= */
+        .effect-firelight {
+            background: radial-gradient(
+                circle 250px at 50% 90%,
+                rgba(255, 100, 20, 0.4) 0%,
+                rgba(200, 50, 0, 0.2) 40%,
+                rgba(0, 0, 0, 0.8) 80%,
+                rgba(0, 0, 0, 0.95) 100%
+            );
+            animation: flicker-fire 0.4s infinite alternate;
+        }
+
+        /* =========================================
+           4. 清冷月光 (Moonlight)
+           原理：位于右上角，冷色调（青蓝色），极度柔和的渐变，整体较暗
+           ========================================= */
+        .effect-moonlight {
+            background: radial-gradient(
+                circle 1200px at 120% -20%, /* 光源在屏幕右上角外部 */
+                rgba(120, 180, 255, 0.3) 0%,
+                rgba(50, 80, 120, 0.15) 40%,
+                rgba(0, 10, 20, 0.8) 80%,
+                rgba(0, 0, 0, 0.98) 100%
+            );
+        }
+
+        /* =========================================
+           5. 温暖日光 (Sunlight)
+           原理：左上角极亮，暖白色，遮罩四周透明度低，不产生绝对的黑暗
+           ========================================= */
+        .effect-sunlight {
+            background: radial-gradient(
+                circle 1200px at -20% -20%, /* 光源在屏幕左上角外部 */
+                rgba(255, 255, 240, 0.5) 0%,
+                rgba(255, 220, 150, 0.25) 30%,
+                rgba(0, 0, 0, 0.2) 70%,
+                rgba(0, 0, 0, 0.5) 100%
+            );
+            mix-blend-mode: overlay; /* 日光更适合用 overlay 或 hard-light 融合 */
+        }
+
+        /* 光效关闭（全亮） */
+        .effect-none {
+            background: rgba(0, 0, 0, 0);
+        }
+
+        /* =========================================
+           动画关键帧定义
+           ========================================= */
+        @keyframes flicker-electric {
+            0%   { opacity: 1; }
+            3%   { opacity: 0.4; }
+            6%   { opacity: 1; }
+            7%   { opacity: 0.4; }
+            8%   { opacity: 1; }
+            9%   { opacity: 1; }
+            10%  { opacity: 0.3; }
+            11%  { opacity: 1; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes flicker-fire {
+            0%   { opacity: 0.8; transform: scale(0.98); }
+            50%  { opacity: 0.9; transform: scale(1.02) translate(1px, -1px); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col md:flex-row font-sans overflow-hidden">
+
+    <!-- 左侧：效果演示区 -->
+    <div class="flex-1 flex flex-col relative border-r border-gray-700 shadow-2xl z-10">
+        <!-- 顶部工具栏 -->
+        <div class="bg-gray-800 p-4 border-b border-gray-700 flex flex-wrap gap-2 items-center justify-between">
+            <h1 class="text-xl font-bold text-gray-200 mr-4">✨ 光效实验室</h1>
+            <div class="flex gap-2" id="controls">
+                <button data-effect="effect-flashlight" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition font-medium ring-2 ring-indigo-400">手电筒</button>
+                <button data-effect="effect-electric" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition font-medium">电灯</button>
+                <button data-effect="effect-firelight" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition font-medium text-orange-400">火光</button>
+                <button data-effect="effect-moonlight" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition font-medium text-blue-300">月光</button>
+                <button data-effect="effect-sunlight" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition font-medium text-yellow-300">日光</button>
+                <button data-effect="effect-none" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition font-medium ml-2">关闭光效</button>
+            </div>
+        </div>
+
+        <!-- 场景渲染区 -->
+        <div id="scene-container" class="flex-1 cursor-crosshair">
+            <!-- 场景里的一些虚拟物体，测试光线照射 -->
+            <div class="absolute top-1/4 left-1/4 text-white text-opacity-80 font-serif italic text-2xl">
+                "一封散落的信件..."
+            </div>
+            <div class="absolute bottom-1/4 right-1/4">
+                <div class="w-16 h-24 bg-amber-900 rounded shadow-2xl border-2 border-amber-950"></div>
+                <p class="text-xs text-gray-400 mt-1">木柜</p>
+            </div>
+
+            <!-- 核心：光效遮罩层 -->
+            <div id="light-layer" class="effect-flashlight"></div>
+        </div>
+    </div>
+
+    <!-- 右侧：教学与原理区 -->
+    <div class="w-full md:w-96 bg-gray-800 flex flex-col h-full overflow-y-auto">
+        <div class="p-6">
+            <h2 class="text-2xl font-bold text-white mb-2" id="tutorial-title">手电筒原理</h2>
+            <p class="text-sm text-gray-400 mb-6" id="tutorial-desc">手电筒是解谜游戏中最常用的沉浸式光效，它会跟随玩家的鼠标移动。</p>
+
+            <div class="space-y-6">
+                <!-- 核心技术点 -->
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h3 class="text-indigo-400 font-semibold mb-2 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        CSS 径向渐变
+                    </h3>
+                    <p class="text-sm text-gray-300 mb-3">使用 <code class="bg-gray-800 text-pink-400 px-1 py-0.5 rounded">radial-gradient</code> 创造一个中心透明，四周纯黑的圆形遮罩。</p>
+                    <pre class="text-xs text-gray-400 bg-gray-950 p-2 rounded overflow-x-auto" id="code-css">
+background: radial-gradient(
+  circle 150px at var(--cursor-x) var(--cursor-y),
+  transparent 0%,
+  rgba(0,0,0,0.7) 80%,
+  #000 100%
+);</pre>
+                </div>
+
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700" id="js-tutorial-box">
+                    <h3 class="text-green-400 font-semibold mb-2 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        JS 坐标追踪
+                    </h3>
+                    <p class="text-sm text-gray-300 mb-3">监听鼠标事件，实时将坐标赋值给 CSS 变量 <code class="bg-gray-800 text-pink-400 px-1 py-0.5 rounded">--cursor-x</code>。</p>
+                    <pre class="text-xs text-gray-400 bg-gray-950 p-2 rounded overflow-x-auto">
+container.addEventListener('mousemove', (e) => {
+  layer.style.setProperty(
+    '--cursor-x', `${e.clientX}px`
+  );
+});</pre>
+                </div>
+
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h3 class="text-yellow-400 font-semibold mb-2 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                        鼠标穿透秘籍
+                    </h3>
+                    <p class="text-sm text-gray-300">
+                        一定要在遮罩层加上 <code class="bg-gray-800 text-pink-400 px-1 py-0.5 rounded">pointer-events: none;</code>。否则玩家点击物品时，点到的其实是“光罩”，而不是下面的物品！
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交互逻辑 -->
+    <script>
+        const sceneContainer = document.getElementById('scene-container');
+        const lightLayer = document.getElementById('light-layer');
+        const buttons = document.querySelectorAll('#controls button');
+
+        const tutorialTitle = document.getElementById('tutorial-title');
+        const tutorialDesc = document.getElementById('tutorial-desc');
+        const codeCss = document.getElementById('code-css');
+        const jsBox = document.getElementById('js-tutorial-box');
+
+        // 教程文案配置
+        const tutorials = {
+            'effect-flashlight': {
+                title: '🔦 手电筒原理',
+                desc: '核心机制：动态跟随鼠标的径向渐变。',
+                css: `background: radial-gradient(\n  circle 150px at var(--cursor-x) var(--cursor-y),\n  transparent 0%,\n  rgba(0,0,0,0.7) 80%,\n  #000 100%\n);`,
+                showJs: true
+            },
+            'effect-electric': {
+                title: '💡 房间电灯原理',
+                desc: '核心机制：光源坐标在屏幕外部上方 (-20%)，加大半径，模拟天花板吊灯的照明范围，加上电压不稳的闪烁动画。',
+                css: `background: radial-gradient(\n  circle 800px at 50% -20%,\n  rgba(255, 240, 200, 0.4) 0%,\n  rgba(0, 0, 0, 0.95) 100%\n);\n\n@keyframes flicker-electric { ... }`,
+                showJs: false
+            },
+            'effect-firelight': {
+                title: '🔥 火光原理',
+                desc: '核心机制：底部的红橙色径向渐变 + scale缩放模拟火焰跳动。',
+                css: `@keyframes flicker-fire {\n  0% { transform: scale(0.98); }\n  50% { transform: scale(1.02); }\n  100% { transform: scale(1); }\n}`,
+                showJs: false
+            },
+            'effect-moonlight': {
+                title: '🌙 清冷月光原理',
+                desc: '核心机制：光源设置在屏幕右上角外部 (120% -20%)，采用极大半径(1200px)和冷色调，模拟高处窗户透进来的清冷月光。',
+                css: `background: radial-gradient(\n  circle 1200px at 120% -20%,\n  rgba(120, 180, 255, 0.3) 0%,\n  rgba(0, 0, 0, 0.98) 100%\n);`,
+                showJs: false
+            },
+            'effect-sunlight': {
+                title: '☀️ 温暖日光原理',
+                desc: '核心机制：光源设置在屏幕左上角外部 (-20% -20%)，超大范围暖白光，配合 mix-blend-mode: overlay 提亮环境。',
+                css: `background: radial-gradient(\n  circle 1200px at -20% -20%,\n  ... \n);\nmix-blend-mode: overlay;`,
+                showJs: false
+            },
+            'effect-none': {
+                title: '🚫 关闭光效',
+                desc: '这里是完全没有加光罩覆盖的原本场景。',
+                css: `background: transparent;`,
+                showJs: false
+            }
+        };
+
+        // 1. 鼠标坐标追踪监听器
+        sceneContainer.addEventListener('mousemove', (e) => {
+            // 获取容器的边界信息，计算鼠标在容器内的相对坐标
+            const rect = sceneContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // 将坐标更新到光效层的 CSS 变量中
+            lightLayer.style.setProperty('--cursor-x', `${x}px`);
+            lightLayer.style.setProperty('--cursor-y', `${y}px`);
+        });
+
+        // 移动端支持：触摸移动
+        sceneContainer.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = sceneContainer.getBoundingClientRect();
+            lightLayer.style.setProperty('--cursor-x', `${touch.clientX - rect.left}px`);
+            lightLayer.style.setProperty('--cursor-y', `${touch.clientY - rect.top}px`);
+        }, { passive: true });
+
+        // 2. 按钮切换逻辑
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const effectClass = e.target.getAttribute('data-effect');
+
+                // 切换样式类
+                lightLayer.className = effectClass;
+
+                // 更新按钮 UI (取消所有高亮，高亮当前)
+                buttons.forEach(b => {
+                    b.classList.remove('ring-2', 'ring-indigo-400', 'bg-indigo-600');
+                    b.classList.add('bg-gray-700');
+                });
+                e.target.classList.remove('bg-gray-700');
+                e.target.classList.add('bg-indigo-600', 'ring-2', 'ring-indigo-400');
+
+                // 更新右侧教学文案
+                const data = tutorials[effectClass];
+                if (data) {
+                    tutorialTitle.textContent = data.title;
+                    tutorialDesc.textContent = data.desc;
+                    codeCss.textContent = data.css;
+                    jsBox.style.display = data.showJs ? 'block' : 'none';
+
+                    // 日光模式特殊处理混合模式
+                    if (effectClass === 'effect-sunlight') {
+                        lightLayer.style.mixBlendMode = 'overlay';
+                    } else {
+                        lightLayer.style.mixBlendMode = 'normal';
+                    }
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

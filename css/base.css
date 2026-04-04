@@ -62,7 +62,7 @@
     background: rgba(102, 252, 241, 0.4);
     transform-origin: bottom;
     transform: scaleY(0);
-    transition: transform 5s linear;
+    transition: transform 2.5s linear;
     pointer-events: none;
     border-radius: inherit;
 }
