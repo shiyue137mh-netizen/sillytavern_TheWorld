@@ -24,6 +24,11 @@
     animation-name: fall;
 }
 
+.particle-wrapper.particle-snow {
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
 .raindrop {
     position: absolute;
     width: 1.5px;
@@ -49,6 +54,12 @@
 }
 .particle-wrapper.angled-strong {
     animation-name: fall-angled-strong !important;
+}
+.particle-wrapper.snow-drift-light {
+    animation-name: snow-fall-light !important;
+}
+.particle-wrapper.snow-drift-strong {
+    animation-name: snow-fall-strong !important;
 }
 
 .leaf {
@@ -220,6 +231,34 @@
     }
     100% {
         transform: translateY(110vh) translateX(calc(42vw + var(--tw-gust-x, 0vw)))
+    }
+}
+@keyframes snow-fall-light {
+    0% {
+        transform: translateY(-12vh) translateX(0);
+    }
+    34% {
+        transform: translateY(34vh) translateX(calc(3vw * var(--tw-curve-a, 0.5)));
+    }
+    72% {
+        transform: translateY(78vh) translateX(calc(7vw * var(--tw-curve-b, 0.4)));
+    }
+    100% {
+        transform: translateY(118vh) translateX(calc(12vw * var(--tw-curve-c, 0.3)));
+    }
+}
+@keyframes snow-fall-strong {
+    0% {
+        transform: translateY(-12vh) translateX(0);
+    }
+    28% {
+        transform: translateY(30vh) translateX(calc(5vw * var(--tw-curve-a, 0.5)));
+    }
+    64% {
+        transform: translateY(74vh) translateX(calc(12vw * var(--tw-curve-b, 0.4)));
+    }
+    100% {
+        transform: translateY(118vh) translateX(calc(20vw * var(--tw-curve-c, 0.3)));
     }
 }
 @keyframes fall-sway-rotate-local {

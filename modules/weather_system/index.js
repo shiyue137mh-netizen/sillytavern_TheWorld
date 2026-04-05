@@ -119,7 +119,7 @@ export class WeatherSystem {
 
         const shouldWindPulse = this.state.weatherFxEnabled
             && isWindy
-            && (isRaining || isSnowing || (!isCloudy && !shouldShowSakura));
+            && (isRaining || (!isSnowing && !isCloudy && !shouldShowSakura));
         if (shouldWindPulse) {
             this._startWindPulse($fgFxTarget, density.wind);
         } else {
@@ -152,7 +152,10 @@ export class WeatherSystem {
                             '--tw-curve-b': (0.18 + Math.random() * 0.52).toFixed(3),
                             '--tw-curve-c': (0.10 + Math.random() * 0.40).toFixed(3)
                         });
-                        if (isWindy) w.find('.snowflake').css('animation-name', 'fall-sway');
+                        if (isWindy) {
+                            w.addClass(density.wind >= 1.5 ? 'snow-drift-strong' : 'snow-drift-light');
+                            w.find('.snowflake').css('animation-name', 'fall-sway');
+                        }
                         $fgFxTarget.append(w);
                     } };
             } else if (isWindy && !isCloudy && !shouldShowSakura) { // MODIFIED: Do not show wind effect if sakura is active
@@ -549,13 +552,22 @@ export class WeatherSystem {
 
     _createParticleWrapper(density, type) {
         const isRaining = type === 'rain';
+        const isSnowing = type === 'snow';
         const isWindy = density.wind > 0;
-        const wrapper = this.$('<div></div>').addClass('particle-wrapper').css({
+        const duration = isRaining
+            ? ((0.4 + Math.random() * 0.4) / density.speed)
+            : ((10 + Math.random() * 10) / density.speed);
+        const wrapper = this.$('<div></div>').addClass(`particle-wrapper particle-${type}`).css({
             left: isWindy ? `${Math.random() * 150 - 50}%` : `${Math.random() * 110 - 5}%`,
-            animationDelay: `-${Math.random() * (isRaining ? 6 : 12)}s`,
-            animationDuration: `${((isRaining ? 0.4 : 10) + Math.random() * (isRaining ? 0.4 : 10)) / density.speed}s`
+            animationDelay: isSnowing ? '0s' : `-${Math.random() * (isRaining ? 6 : 12)}s`,
+            animationDuration: `${duration}s`
         });
-        if (isWindy) { wrapper.addClass(density.wind >= 1.5 ? 'angled-strong' : 'angled-light'); }
+        if (isSnowing) {
+            wrapper.css('animationIterationCount', '1');
+            if (isWindy) wrapper.addClass(density.wind >= 1.5 ? 'snow-drift-strong' : 'snow-drift-light');
+        } else if (isWindy) {
+            wrapper.addClass(density.wind >= 1.5 ? 'angled-strong' : 'angled-light');
+        }
         return wrapper;
     }
 

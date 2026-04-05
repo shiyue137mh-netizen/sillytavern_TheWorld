@@ -11,6 +11,8 @@ export class UIEventManager {
         this.pressStartTime = 0;
         this.isAudioUnlocked = false;
         this.longPressDurationMs = 2500;
+        this.lastTouchToggleAt = 0;
+        this.togglePressSource = null;
 
         // Managers are now passed in via dependencies, no need to instantiate them here.
     }
@@ -71,6 +73,7 @@ export class UIEventManager {
                 clearTimeout(this.longPressTimer);
                 this.longPressTimer = null;
             }
+            this.togglePressSource = null;
             $toggleBtn.removeData('tw-long-press-active');
             $toggleBtn.removeClass('long-press-active');
             $toggleBtn.find('.long-press-indicator').remove();
@@ -79,11 +82,21 @@ export class UIEventManager {
         $toggleBtn
             .off('.tw_toggle')
             .on('mousedown.tw_toggle touchstart.tw_toggle', (e) => {
+                const isTouchEvent = e.type === 'touchstart';
+                if (!isTouchEvent && (Date.now() - this.lastTouchToggleAt) < 700) {
+                    return;
+                }
                 if (!this.isAudioUnlocked) {
                     this.audioManager.unlockAudio();
                     this.isAudioUnlocked = true;
                 }
                 if (e.type === 'mousedown' && e.which !== 1) return;
+
+                if (isTouchEvent) {
+                    this.lastTouchToggleAt = Date.now();
+                }
+
+                this.togglePressSource = isTouchEvent ? 'touch' : 'mouse';
 
                 this.pressStartTime = Date.now();
                 $toggleBtn.data('tw-long-press-active', true);
@@ -96,6 +109,13 @@ export class UIEventManager {
                 }, this.longPressDurationMs);
             })
             .on('mouseup.tw_toggle touchend.tw_toggle', (e) => {
+                const isTouchEvent = e.type === 'touchend';
+                if (!isTouchEvent && this.togglePressSource === 'touch') {
+                    return;
+                }
+                if (isTouchEvent) {
+                    this.lastTouchToggleAt = Date.now();
+                }
                 if (this.longPressTimer === null) {
                     clearLongPress();
                     return;

@@ -35,6 +35,8 @@ export class TheWorldApp {
         this.SillyTavernContext = this.SillyTavern.getContext();
 
         this.processorTimeout = null;
+        this.chatChangeSequence = 0;
+        this.pendingChatRefreshTimer = null;
         this.previousStateSnapshot = null;
         this.dependencies = {}; // To be populated in initialize
 
@@ -370,6 +372,42 @@ export class TheWorldApp {
         this.logger.success('[Recalculator] Initial state calculated and ready.');
     }
 
+    async refreshStateForCurrentChat(sequence, reason = 'chat change') {
+        if (sequence !== this.chatChangeSequence) return;
+
+        const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
+        if (sequence !== this.chatChangeSequence) return;
+
+        if (bookName) {
+            await this.mapSystem.initializeData(bookName);
+            if (sequence !== this.chatChangeSequence) return;
+            await this.mapSystem.locatorManager.initializePlayerLocation();
+            if (sequence !== this.chatChangeSequence) return;
+        } else {
+            this.mapSystem.mapDataManager.nodes.clear();
+            this.mapSystem.mapDataManager.bookName = null;
+            this.mapSystem.mapDataManager._isInitialized = false;
+            await this.mapSystem.atlasManager.updateAtlas();
+            if (sequence !== this.chatChangeSequence) return;
+        }
+
+        const lastId = this.TavernHelper.getLastMessageId();
+        this.logger.log(`[Chat Refresh] Running ${reason}. Last message ID: ${lastId}`);
+
+        if (lastId >= 0) {
+            await this.recalculateAndSnapshot(lastId);
+            return;
+        }
+
+        TheWorldState.latestMapData = {};
+        TheWorldState.latestWorldStateData = {};
+        this.dataManager.saveState();
+        if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
+        if (this.uiController) {
+            await this.uiController.updateAllPanes();
+        }
+    }
+
     setupEventListeners() {
         const { eventSource, eventTypes } = this.SillyTavernContext;
 
@@ -423,10 +461,16 @@ export class TheWorldApp {
             }
         });
 
-        eventSource.on(eventTypes.CHAT_CHANGED, async () => {
-            this.logger.log('Chat changed. Clearing all transient state and recalculating for new chat.');
+        eventSource.on(eventTypes.CHAT_CHANGED, async (chatId) => {
+            const sequence = ++this.chatChangeSequence;
+            this.logger.log(`Chat changed to ${chatId}. Clearing transient state and scheduling recalculation.`);
             this.previousStateSnapshot = null;
             TheWorldState.lorebookTransactionHistory = {}; // Clear transaction history for new chat
+
+            if (this.pendingChatRefreshTimer) {
+                this.parentWin.clearTimeout(this.pendingChatRefreshTimer);
+                this.pendingChatRefreshTimer = null;
+            }
 
             TheWorldState.latestMapData = {};
             TheWorldState.latestWorldStateData = {};
@@ -437,31 +481,14 @@ export class TheWorldApp {
                 await this.uiController.updateAllPanes();
             }
 
-            // Proactively initialize map data for the new chat
-            const bookName = await this.mapSystem.lorebookManager.findBoundWorldbookName();
-            if (bookName) {
-                await this.mapSystem.initializeData(bookName);
-                await this.mapSystem.locatorManager.initializePlayerLocation();
-            } else {
-                // If no book, clear the data manager's state to prevent showing old map data
-                this.mapSystem.mapDataManager.nodes.clear();
-                this.mapSystem.mapDataManager.bookName = null;
-                this.mapSystem.mapDataManager._isInitialized = false;
-                await this.mapSystem.atlasManager.updateAtlas(); // Update to show an empty atlas
-            }
+            await new Promise(resolve => this.parentWin.setTimeout(resolve, 80));
+            await this.refreshStateForCurrentChat(sequence, 'initial chat-change refresh');
 
-            const lastId = this.TavernHelper.getLastMessageId();
-            if (lastId >= 0) {
-                await this.recalculateAndSnapshot(lastId);
-            } else {
-                TheWorldState.latestMapData = {};
-                TheWorldState.latestWorldStateData = {};
-                this.dataManager.saveState();
-                if (this.globalThemeManager.isActive) this.globalThemeManager.updateTheme();
-                if (this.uiController) {
-                    await this.uiController.updateAllPanes();
-                }
-            }
+            this.pendingChatRefreshTimer = this.parentWin.setTimeout(async () => {
+                if (sequence !== this.chatChangeSequence) return;
+                await this.refreshStateForCurrentChat(sequence, 'settled chat-change refresh');
+                this.pendingChatRefreshTimer = null;
+            }, 250);
         });
     }
 }

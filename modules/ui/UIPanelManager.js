@@ -18,17 +18,31 @@ export class UIPanelManager {
         const $button = this.$(`#${this.config.TOGGLE_BUTTON_ID}`);
         if (!$panel.length) return;
 
+        const isMobile = this.win.innerWidth <= 480;
+        const maxPanelWidth = Math.max(280, this.win.innerWidth - 20);
+        const maxPanelHeight = Math.max(200, this.win.innerHeight - 20);
+
+        if (isMobile) {
+            this.state.panelWidth = Math.min(this.state.panelWidth || 450, maxPanelWidth);
+            this.state.panelHeight = Math.min(this.state.panelHeight || this.win.innerHeight * 0.7, maxPanelHeight);
+            this.state.panelTop = 10;
+            this.state.panelLeft = Math.max(10, Math.round((this.win.innerWidth - this.state.panelWidth) / 2));
+            this.dataManager.saveState();
+        }
+
         if (this.state.panelLeft === null || isNaN(this.state.panelLeft) ||
             this.state.panelTop === null || isNaN(this.state.panelTop) ||
             this.state.panelLeft > this.win.innerWidth - 50 ||
             this.state.panelTop > this.win.innerHeight - 50 ||
-            this.state.panelLeft < -(this.state.panelWidth - 50) ||
+            this.state.panelLeft < 0 ||
             this.state.panelTop < 0) {
             this.logger.warn('面板位置无效或已偏离屏幕，正在重置到默认位置。');
-            this.state.panelWidth = 450;
-            this.state.panelHeight = this.win.innerHeight * 0.6;
-            this.state.panelTop = 60;
-            this.state.panelLeft = this.win.innerWidth - this.state.panelWidth - 20;
+            this.state.panelWidth = Math.min(450, maxPanelWidth);
+            this.state.panelHeight = Math.min(this.win.innerHeight * 0.6, maxPanelHeight);
+            this.state.panelTop = isMobile ? 10 : 60;
+            this.state.panelLeft = isMobile
+                ? Math.max(10, Math.round((this.win.innerWidth - this.state.panelWidth) / 2))
+                : Math.max(0, this.win.innerWidth - this.state.panelWidth - 20);
             this.dataManager.saveState();
         }
 
@@ -36,11 +50,14 @@ export class UIPanelManager {
             this.state.panelHeight = this.win.innerHeight * 0.6;
         }
 
+        this.ensurePanelInViewport(false);
+
         $panel.css({
             width: `${this.state.panelWidth}px`,
             height: `${this.state.panelHeight}px`,
             top: `${this.state.panelTop}px`,
             left: `${this.state.panelLeft}px`,
+            right: 'auto',
         });
 
         this.checkPanelWidth();
@@ -58,12 +75,43 @@ export class UIPanelManager {
         const $panel = this.$(`#${this.config.PANEL_ID}`);
         const isVisible = typeof forceShow === 'boolean' ? forceShow : !$panel.is(':visible');
         if (isVisible) {
+            this.ensurePanelInViewport(true);
+            $panel.css({
+                width: `${this.state.panelWidth}px`,
+                height: `${this.state.panelHeight}px`,
+                top: `${this.state.panelTop}px`,
+                left: `${this.state.panelLeft}px`,
+                right: 'auto',
+            });
             $panel.show();
         } else {
             $panel.hide();
         }
         this.state.isPanelVisible = isVisible;
         this.dataManager.saveState();
+    }
+
+    ensurePanelInViewport(shouldPersist = false) {
+        const isMobile = this.win.innerWidth <= 480;
+        const maxWidth = Math.max(280, this.win.innerWidth - 20);
+        const maxHeight = Math.max(200, this.win.innerHeight - 20);
+
+        this.state.panelWidth = Math.min(this.state.panelWidth || 450, maxWidth);
+        this.state.panelHeight = Math.min(this.state.panelHeight || this.win.innerHeight * 0.6, maxHeight);
+
+        if (isMobile) {
+            this.state.panelTop = 10;
+            this.state.panelLeft = Math.max(10, Math.round((this.win.innerWidth - this.state.panelWidth) / 2));
+        } else {
+            const maxLeft = Math.max(0, this.win.innerWidth - this.state.panelWidth);
+            const maxTop = Math.max(0, this.win.innerHeight - this.state.panelHeight);
+            this.state.panelLeft = Math.max(0, Math.min(this.state.panelLeft ?? maxLeft, maxLeft));
+            this.state.panelTop = Math.max(0, Math.min(this.state.panelTop ?? 60, maxTop));
+        }
+
+        if (shouldPersist) {
+            this.dataManager.saveState();
+        }
     }
 
     checkPanelWidth() {

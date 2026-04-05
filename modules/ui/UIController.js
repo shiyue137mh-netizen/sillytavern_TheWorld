@@ -77,6 +77,15 @@ export class UIController {
         this.$('body').toggleClass('tw-is-mobile-view', isMobile);
         this.logger.log(`[UI] Toggled mobile view class. Is mobile: ${isMobile}`);
 
+        this.panelManager.ensurePanelInViewport(true);
+        this.$(`#${this.config.PANEL_ID}`).css({
+            width: `${this.state.panelWidth}px`,
+            height: `${this.state.panelHeight}px`,
+            top: `${this.state.panelTop}px`,
+            left: `${this.state.panelLeft}px`,
+            right: 'auto',
+        });
+
         // Also notify the global theme manager to update its state
         if (this.dependencies.globalThemeManager.isActive) {
             this.dependencies.globalThemeManager.updateTheme();
